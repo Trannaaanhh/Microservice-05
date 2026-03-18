@@ -200,8 +200,11 @@ services:
       - JWT_SECRET=dev-jwt-secret
       - AUTH_SERVICE_URL=http://auth-service:8000
       - RATE_LIMIT_PER_MINUTE=120
+      - PRODUCT_IMAGE_DIR=/app/image
     ports:
       - "8000:8000"
+    volumes:
+      - ./image:/app/image:ro
     depends_on:
       postgres:
         condition: service_healthy

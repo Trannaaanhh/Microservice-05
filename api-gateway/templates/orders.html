@@ -42,6 +42,13 @@
                 {% else %}
                     ID {{ order.id }} - customer {{ order.customer_id }} - order {{ order.status }} - payment {{ order.payment_status }} - shipment {{ order.shipment_status }}
                 {% endif %}
+                {% if order.book_images %}
+                    <div class="product-thumb-wrap">
+                        {% for image_url in order.book_images %}
+                            <img src="{{ image_url }}" alt="Order {{ order.id }} item" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </li>
         {% empty %}
             <li>No orders</li>

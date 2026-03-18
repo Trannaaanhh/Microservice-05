@@ -26,6 +26,13 @@
             <li>Customer ID: {{ order.customer_id }}</li>
             <li>Order status: {{ order.status|default:"N/A" }}</li>
         </ul>
+        {% if order_book_images %}
+            <div class="product-thumb-wrap">
+                {% for image_url in order_book_images %}
+                    <img src="{{ image_url }}" alt="Order {{ order.id }} item" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                {% endfor %}
+            </div>
+        {% endif %}
     {% else %}
         <p>No order information.</p>
     {% endif %}

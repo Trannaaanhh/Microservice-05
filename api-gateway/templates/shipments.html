@@ -20,7 +20,16 @@
     <h2>Shipment List</h2>
     <ul>
         {% for shipment in shipments %}
-            <li>ID {{ shipment.id }} - order {{ shipment.order_id }} - status {{ shipment.status }}</li>
+            <li>
+                <div>ID {{ shipment.id }} - order {{ shipment.order_id }} - status {{ shipment.status }}</div>
+                {% if shipment.book_images %}
+                    <div class="product-thumb-wrap">
+                        {% for image_url in shipment.book_images %}
+                            <img src="{{ image_url }}" alt="Shipment {{ shipment.id }} item" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </li>
         {% empty %}
             <li>No shipments</li>
         {% endfor %}

@@ -13,7 +13,7 @@ from .metrics import record_request
 
 LOGGER = logging.getLogger('api_gateway')
 RATE_LIMIT_PER_MINUTE = int(os.getenv('RATE_LIMIT_PER_MINUTE', '120'))
-_EXEMPT_PATH_PREFIXES = ('/login', '/logout', '/admin/', '/health/', '/metrics/', '/static/')
+_EXEMPT_PATH_PREFIXES = ('/login', '/logout', '/admin/', '/health/', '/metrics/', '/static/', '/image/')
 _RATE_BUCKETS = defaultdict(list)
 
 

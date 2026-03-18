@@ -12,7 +12,26 @@ class OrderListCreate(APIView):
         return Response(OrderSerializer(orders, many=True).data)
 
     def post(self, request):
-        serializer = OrderSerializer(data={"customer_id": request.data.get("customer_id")})
+        raw_book_ids = request.data.get("book_ids", [])
+        normalized_book_ids = []
+        if isinstance(raw_book_ids, list):
+            seen = set()
+            for value in raw_book_ids:
+                try:
+                    book_id = int(value)
+                except (TypeError, ValueError):
+                    continue
+                if book_id <= 0 or book_id in seen:
+                    continue
+                seen.add(book_id)
+                normalized_book_ids.append(book_id)
+
+        serializer = OrderSerializer(
+            data={
+                "customer_id": request.data.get("customer_id"),
+                "book_ids": normalized_book_ids,
+            }
+        )
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

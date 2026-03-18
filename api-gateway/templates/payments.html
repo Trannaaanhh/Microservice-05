@@ -30,6 +30,13 @@
                 {% else %}
                     ID {{ payment.id }} - order {{ payment.order_id }} - status {{ payment.status }}
                 {% endif %}
+                {% if payment.book_images %}
+                    <div class="product-thumb-wrap">
+                        {% for image_url in payment.book_images %}
+                            <img src="{{ image_url }}" alt="Payment {{ payment.id }} item" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </li>
         {% empty %}
             <li>No payments</li>

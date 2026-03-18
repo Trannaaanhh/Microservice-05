@@ -66,6 +66,22 @@ docker compose ps
 - Recommender AI Service: http://localhost:8008/recommendations/1/
 - Clothes Service: http://localhost:8009/clothes/
 
+## Product image support
+
+- Product images are served by API Gateway from `./image` via: `http://localhost:8000/image/<filename>`
+- Current seeded images:
+	- Books: `cleancode.png`, `designpatterns.png`, `refactoring.png`
+	- Clothes: `Basic T-Shirt.png`, `DenimJacket.png`
+- Image thumbnails are shown in:
+	- Books, Book Detail
+	- Clothes, Clothes Detail
+	- Carts, Checkout
+	- Orders (including Order History), Order Detail
+	- Shipments
+	- Payments, Payment Detail
+	- Recommendations
+- If an image URL is missing or broken, UI automatically falls back to `/image/product-placeholder.svg`.
+
 ## Common issue
 
 If you see daemon/pipe errors on Windows (for example `dockerDesktopLinuxEngine`), start Docker Desktop first, then run:

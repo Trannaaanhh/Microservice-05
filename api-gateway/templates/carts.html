@@ -39,6 +39,11 @@
                 <div>
                     <a href="{% url 'cart_item_detail' item.id %}">Item {{ item.id }}</a> - {{ item.book_title }} - quantity {{ item.quantity }} - price ${{ item.item_total }}
                 </div>
+                {% if item.book_image_url %}
+                    <div class="product-thumb-wrap">
+                        <img src="{{ item.book_image_url }}" alt="{{ item.book_title }}" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                    </div>
+                {% endif %}
                 <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
                     <form method="post" style="display: flex; gap: 8px; align-items: center; grid-template-columns: none;">
                         {% csrf_token %}

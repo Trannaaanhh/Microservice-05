@@ -22,6 +22,7 @@
             <input type="text" name="author" placeholder="Author" required />
             <input type="number" step="0.01" name="price" placeholder="Price" required />
             <input type="number" name="stock" placeholder="Stock" required />
+            <input type="text" name="image_url" placeholder="Image URL (e.g. /image/cleancode.png)" />
             <button type="submit">Create</button>
         </form>
     {% endif %}
@@ -29,14 +30,20 @@
 
 <section class="card">
     <h2>Book List</h2>
+    <div id="cart-feedback" style="margin-bottom:10px;"></div>
     <ul>
         {% for book in books %}
             <li>
                 <div>
                     ID {{ book.id }} - <a href="{% url 'book_detail' book.id %}">{{ book.title }}</a> - {{ book.author }} - ${{ book.price }} - stock {{ book.stock }}
                 </div>
+                {% if book.image_url %}
+                    <div class="product-thumb-wrap">
+                        <img src="{{ book.image_url }}" alt="{{ book.title }}" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                    </div>
+                {% endif %}
                 {% if is_customer %}
-                    <form method="post" style="margin-top: 10px; grid-template-columns: 140px 120px 140px;">
+                    <form method="post" class="add-to-cart-form" style="margin-top: 10px; grid-template-columns: 140px 120px 140px;">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="add_to_cart" />
                         <input type="hidden" name="book_id" value="{{ book.id }}" />
@@ -44,7 +51,7 @@
                         <button type="submit">Add to cart</button>
                     </form>
                 {% else %}
-                    <form method="post" style="margin-top: 10px; grid-template-columns: repeat(5, minmax(120px, 1fr));">
+                    <form method="post" style="margin-top: 10px; grid-template-columns: repeat(6, minmax(120px, 1fr));">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="update_book" />
                         <input type="hidden" name="book_id" value="{{ book.id }}" />
@@ -52,6 +59,7 @@
                         <input type="text" name="author" value="{{ book.author }}" required />
                         <input type="number" step="0.01" name="price" value="{{ book.price }}" required />
                         <input type="number" name="stock" value="{{ book.stock }}" required />
+                        <input type="text" name="image_url" value="{{ book.image_url }}" placeholder="/image/file.png" />
                         <button type="submit">Update</button>
                     </form>
 
@@ -68,5 +76,59 @@
         {% endfor %}
     </ul>
 </section>
+
+{% if is_customer %}
+<script>
+    (function () {
+        const forms = document.querySelectorAll('.add-to-cart-form');
+        const feedback = document.getElementById('cart-feedback');
+
+        function showMessage(message, isError) {
+            if (!feedback) return;
+            feedback.className = isError ? 'error' : '';
+            feedback.textContent = message;
+        }
+
+        forms.forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const submitButton = form.querySelector('button[type="submit"]');
+                const originalLabel = submitButton ? submitButton.textContent : '';
+
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Adding...';
+                }
+
+                try {
+                    const body = new URLSearchParams(new FormData(form));
+                    const response = await fetch(window.location.href, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: body.toString(),
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok || !data.ok) {
+                        showMessage(data.error || 'Add to cart failed.', true);
+                    } else {
+                        showMessage(data.message || 'Added to cart.', false);
+                    }
+                } catch (err) {
+                    showMessage('Network error while adding to cart.', true);
+                } finally {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalLabel || 'Add to cart';
+                    }
+                }
+            });
+        });
+    })();
+</script>
+{% endif %}
 {% endblock %}
 

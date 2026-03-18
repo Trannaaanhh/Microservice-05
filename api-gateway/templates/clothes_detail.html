@@ -8,6 +8,11 @@
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
     {% if clothes %}
+        {% if clothes.image_url %}
+            <div class="product-thumb-wrap" style="margin-bottom:12px;">
+                <img src="{{ clothes.image_url }}" alt="{{ clothes.name }}" class="product-thumb product-thumb-md" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+            </div>
+        {% endif %}
         <ul>
             <li>ID: {{ clothes.id }}</li>
             <li>Name: {{ clothes.name }}</li>

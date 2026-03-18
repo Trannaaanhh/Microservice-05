@@ -39,12 +39,31 @@ def get_recommendation(request, customer_id):
 
     # Fallback: if ratings service is empty/unavailable, recommend in-stock books by stock desc.
     if not ratings:
-        fallback = [
-            _to_int(book.get("id"))
+        ranked_books = [
+            book
             for book in sorted(books, key=lambda b: _to_int(b.get("stock"), 0), reverse=True)
             if _to_int(book.get("stock"), 0) > 0
+        ][:limit]
+
+        detailed = [
+            {
+                "id": _to_int(book.get("id")),
+                "title": book.get("title", ""),
+                "author": book.get("author", ""),
+                "price": book.get("price", 0),
+                "stock": _to_int(book.get("stock"), 0),
+                "image_url": book.get("image_url", ""),
+                "avg_rating": None,
+            }
+            for book in ranked_books
         ]
-        return Response({"recommended_books": fallback[:limit]})
+        return Response(
+            {
+                "customer_id": _to_int(customer_id),
+                "recommended_books": [item["id"] for item in detailed],
+                "recommended_book_details": detailed,
+            }
+        )
 
     seen_by_customer = {
         _to_int(r.get("book_id"))
@@ -75,10 +94,28 @@ def get_recommendation(request, customer_id):
             continue
 
         avg = (score_sum[book_id] / score_count[book_id]) if score_count[book_id] else 0
-        avg_scores.append((book_id, avg, stock))
+        avg_scores.append((book, avg, stock))
 
     # Prioritize higher average rating, then higher stock, then stable by id.
-    avg_scores.sort(key=lambda item: (-item[1], -item[2], item[0]))
+    avg_scores.sort(key=lambda item: (-item[1], -item[2], _to_int(item[0].get("id"))))
 
-    recommended = [book_id for book_id, _, _ in avg_scores[:limit]]
-    return Response({"recommended_books": recommended})
+    ranked = avg_scores[:limit]
+    detailed = [
+        {
+            "id": _to_int(book.get("id")),
+            "title": book.get("title", ""),
+            "author": book.get("author", ""),
+            "price": book.get("price", 0),
+            "stock": _to_int(book.get("stock"), 0),
+            "image_url": book.get("image_url", ""),
+            "avg_rating": round(avg, 2),
+        }
+        for book, avg, _ in ranked
+    ]
+    return Response(
+        {
+            "customer_id": _to_int(customer_id),
+            "recommended_books": [item["id"] for item in detailed],
+            "recommended_book_details": detailed,
+        }
+    )

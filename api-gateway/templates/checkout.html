@@ -14,7 +14,14 @@
         <h2>Items</h2>
         <ul>
             {% for item in current_items %}
-                <li>{{ item.book_title }} - qty {{ item.quantity }} - ${{ item.item_total }}</li>
+                <li>
+                    <div>{{ item.book_title }} - qty {{ item.quantity }} - ${{ item.item_total }}</div>
+                    {% if item.book_image_url %}
+                        <div class="product-thumb-wrap">
+                            <img src="{{ item.book_image_url }}" alt="{{ item.book_title }}" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                        </div>
+                    {% endif %}
+                </li>
             {% endfor %}
         </ul>
 

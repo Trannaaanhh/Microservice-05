@@ -1,10 +1,11 @@
 import os
+from pathlib import Path
 
 import requests
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import redirect, render
 
 from .metrics import snapshot
@@ -20,6 +21,7 @@ SHIP_SERVICE_URL = "http://ship-service:8000"
 COMMENT_RATE_SERVICE_URL = "http://comment-rate-service:8000"
 RECOMMENDER_AI_SERVICE_URL = "http://recommender-ai-service:8000"
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8000")
+IMAGE_DIR = Path(os.getenv("PRODUCT_IMAGE_DIR", "/app/image"))
 
 
 def _safe_get_json(url):
@@ -195,6 +197,15 @@ def metrics(request):
     return JsonResponse(data, status=200)
 
 
+def product_image(request, filename):
+    file_path = (IMAGE_DIR / filename).resolve()
+    if IMAGE_DIR not in file_path.parents and file_path != IMAGE_DIR:
+        raise Http404("Image not found")
+    if not file_path.exists() or not file_path.is_file():
+        raise Http404("Image not found")
+    return FileResponse(file_path.open("rb"))
+
+
 @login_required
 def book_list(request):
     error = None
@@ -221,6 +232,8 @@ def book_list(request):
                         }
                         error = _post_json_with_error(f"{CART_SERVICE_URL}/cart-items/", payload, "Add to cart failed")
                         if not error:
+                            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                                return JsonResponse({"ok": True, "message": "Added to cart."}, status=200)
                             return redirect("books")
             elif _is_staff_user(request.user):
                 if action == "update_book":
@@ -230,6 +243,7 @@ def book_list(request):
                         "author": request.POST.get("author", ""),
                         "price": request.POST.get("price", "0"),
                         "stock": int(request.POST.get("stock", "0") or 0),
+                        "image_url": request.POST.get("image_url", "").strip(),
                     }
                     update_resp = requests.put(f"{BOOK_SERVICE_URL}/books/{book_id}/", json=payload, timeout=5)
                     if update_resp.status_code not in [200, 201]:
@@ -249,6 +263,7 @@ def book_list(request):
                         "author": request.POST.get("author", ""),
                         "price": request.POST.get("price", "0"),
                         "stock": int(request.POST.get("stock", "0") or 0),
+                        "image_url": request.POST.get("image_url", "").strip(),
                     }
                     create_resp = requests.post(f"{BOOK_SERVICE_URL}/books/", json=payload, timeout=5)
                     if create_resp.status_code not in [200, 201]:
@@ -261,6 +276,9 @@ def book_list(request):
             error = "Invalid numeric input."
         except requests.RequestException as exc:
             error = str(exc)
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": False, "error": error or "Request failed."}, status=400)
 
     books, fetch_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
     if isinstance(books, list) and search_query:
@@ -424,6 +442,7 @@ def clothes_list(request):
                         "material": request.POST.get("material", ""),
                         "price": request.POST.get("price", "0"),
                         "stock": _to_int(request.POST.get("stock", "0"), 0),
+                        "image_url": request.POST.get("image_url", "").strip(),
                         "description": request.POST.get("description", ""),
                         "is_active": request.POST.get("is_active") == "on",
                     }
@@ -449,6 +468,7 @@ def clothes_list(request):
                         "material": request.POST.get("material", ""),
                         "price": request.POST.get("price", "0"),
                         "stock": _to_int(request.POST.get("stock", "0"), 0),
+                        "image_url": request.POST.get("image_url", "").strip(),
                         "description": request.POST.get("description", ""),
                         "is_active": request.POST.get("is_active") == "on",
                     }
@@ -621,6 +641,7 @@ def cart_list(request):
                 item["book_title"] = book.get("title") if book else f"Book #{item.get('book_id')}"
                 item["unit_price"] = unit_price
                 item["item_total"] = round(unit_price * quantity, 2)
+                item["book_image_url"] = book.get("image_url", "") if book else ""
 
             cart_total = round(sum(float(item.get("item_total", 0) or 0) for item in current_items), 2)
 
@@ -729,6 +750,7 @@ def checkout(request):
         item["book_title"] = book.get("title") if book else f"Book #{item.get('book_id')}"
         item["unit_price"] = unit_price
         item["item_total"] = round(unit_price * quantity, 2)
+        item["book_image_url"] = book.get("image_url", "") if book else ""
 
     cart_total = round(sum(float(item.get("item_total", 0) or 0) for item in current_items), 2)
 
@@ -779,6 +801,11 @@ def checkout(request):
             "customer_id": current_customer_id,
             "payment_status": request.POST.get("payment_status", "PAID"),
             "shipment_status": request.POST.get("shipment_status", "SHIPPED"),
+            "book_ids": [
+                _to_int(item.get("book_id"), 0)
+                for item in current_items
+                if _to_int(item.get("book_id"), 0) > 0
+            ],
         }
         error = _post_json_with_error(f"{ORDER_SERVICE_URL}/orders/", payload, "Checkout failed")
         if error:
@@ -851,11 +878,21 @@ def order_list(request):
     if isinstance(orders, list):
         payment_map = {payment.get("order_id"): payment.get("status", "UNKNOWN") for payment in payments if isinstance(payment, dict)}
         shipment_map = {shipment.get("order_id"): shipment.get("status", "UNKNOWN") for shipment in shipments if isinstance(shipment, dict)}
+        books, books_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
+        if books_error and not error:
+            error = books_error
+        book_map = {book.get("id"): book for book in books if isinstance(book, dict)} if isinstance(books, list) else {}
 
         for order in orders:
             order_id = order.get("id")
             order["payment_status"] = payment_map.get(order_id, "N/A")
             order["shipment_status"] = shipment_map.get(order_id, "N/A")
+            order_book_ids = [book_id for book_id in (order.get("book_ids") or []) if isinstance(book_id, int)]
+            order["book_images"] = [
+                book_map.get(book_id, {}).get("image_url", "")
+                for book_id in order_book_ids
+                if book_map.get(book_id, {}).get("image_url")
+            ]
 
     merged_error = error or fetch_error or payment_error or shipment_error
     return render(
@@ -912,6 +949,18 @@ def order_detail(request, order_id):
         elif isinstance(customers, list):
             customer = next((row for row in customers if row.get("id") == order.get("customer_id")), None)
 
+    order_book_images = []
+    if order and not error:
+        books, books_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
+        if books_error:
+            error = books_error
+        elif isinstance(books, list):
+            book_map = {book.get("id"): book for book in books if isinstance(book, dict)}
+            for book_id in order.get("book_ids", []) or []:
+                image_url = book_map.get(book_id, {}).get("image_url")
+                if image_url:
+                    order_book_images.append(image_url)
+
     return render(
         request,
         "order_detail.html",
@@ -921,6 +970,7 @@ def order_detail(request, order_id):
             "payment": payment,
             "shipment": shipment,
             "customer": customer,
+            "order_book_images": order_book_images,
         },
     )
 
@@ -948,24 +998,39 @@ def payment_list(request):
 
     payments, fetch_error = _safe_get_json(f"{PAY_SERVICE_URL}/payments/")
 
-    if is_customer and isinstance(payments, list):
-        orders, orders_error = _safe_get_json(f"{ORDER_SERVICE_URL}/orders/")
-        if orders_error and not error:
-            error = orders_error
+    orders, orders_error = _safe_get_json(f"{ORDER_SERVICE_URL}/orders/")
+    books, books_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
 
-        customer_order_ids = set()
-        if isinstance(orders, list):
-            customer_order_ids = {
-                order.get("id")
-                for order in orders
-                if isinstance(order, dict) and order.get("customer_id") == current_customer_id
-            }
+    if orders_error and not error:
+        error = orders_error
+    if books_error and not error:
+        error = books_error
+
+    order_map = {order.get("id"): order for order in orders if isinstance(order, dict)} if isinstance(orders, list) else {}
+    book_map = {book.get("id"): book for book in books if isinstance(book, dict)} if isinstance(books, list) else {}
+
+    if is_customer and isinstance(payments, list):
+        customer_order_ids = {
+            order.get("id")
+            for order in orders
+            if isinstance(order, dict) and order.get("customer_id") == current_customer_id
+        } if isinstance(orders, list) else set()
 
         payments = [
             payment
             for payment in payments
             if isinstance(payment, dict) and payment.get("order_id") in customer_order_ids
         ]
+
+    if isinstance(payments, list):
+        for payment in payments:
+            order = order_map.get(payment.get("order_id"), {})
+            book_ids = order.get("book_ids", []) if isinstance(order, dict) else []
+            payment["book_images"] = [
+                book_map.get(book_id, {}).get("image_url", "")
+                for book_id in book_ids
+                if isinstance(book_id, int) and book_map.get(book_id, {}).get("image_url")
+            ]
 
     return render(
         request,
@@ -1024,6 +1089,18 @@ def payment_detail(request, payment_id):
         elif isinstance(shipments, list):
             shipment = next((row for row in shipments if row.get("order_id") == payment.get("order_id")), None)
 
+    order_book_images = []
+    if order and not error:
+        books, books_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
+        if books_error:
+            error = books_error
+        elif isinstance(books, list):
+            book_map = {book.get("id"): book for book in books if isinstance(book, dict)}
+            for book_id in order.get("book_ids", []) or []:
+                image_url = book_map.get(book_id, {}).get("image_url")
+                if image_url:
+                    order_book_images.append(image_url)
+
     return render(
         request,
         "payment_detail.html",
@@ -1033,6 +1110,7 @@ def payment_detail(request, payment_id):
             "order": order,
             "customer": customer,
             "shipment": shipment,
+            "order_book_images": order_book_images,
         },
     )
 
@@ -1050,7 +1128,25 @@ def shipment_list(request):
             return redirect("shipments")
 
     shipments, fetch_error = _safe_get_json(f"{SHIP_SERVICE_URL}/shipments/")
-    return render(request, "shipments.html", {"shipments": shipments, "error": error or fetch_error})
+
+    orders, orders_error = _safe_get_json(f"{ORDER_SERVICE_URL}/orders/")
+    books, books_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
+
+    order_map = {order.get("id"): order for order in orders if isinstance(order, dict)} if isinstance(orders, list) else {}
+    book_map = {book.get("id"): book for book in books if isinstance(book, dict)} if isinstance(books, list) else {}
+
+    if isinstance(shipments, list):
+        for shipment in shipments:
+            order = order_map.get(shipment.get("order_id"), {})
+            book_ids = order.get("book_ids", []) if isinstance(order, dict) else []
+            shipment["book_images"] = [
+                book_map.get(book_id, {}).get("image_url", "")
+                for book_id in book_ids
+                if isinstance(book_id, int) and book_map.get(book_id, {}).get("image_url")
+            ]
+
+    merged_error = error or fetch_error or orders_error or books_error
+    return render(request, "shipments.html", {"shipments": shipments, "error": merged_error})
 
 
 @login_required
@@ -1079,7 +1175,11 @@ def recommendation_page(request):
     try:
         response = requests.get(f"{RECOMMENDER_AI_SERVICE_URL}/recommendations/{customer_id}/", timeout=5)
         if response.status_code == 200:
-            recommendations = response.json().get("recommended_books", [])
+            payload = response.json()
+            recommendations = payload.get("recommended_book_details", [])
+            if not recommendations:
+                # Backward compatibility if recommender returns only ids.
+                recommendations = [{"id": book_id} for book_id in payload.get("recommended_books", [])]
         else:
             error = f"Recommendation failed with status {response.status_code}"
     except requests.RequestException as exc:

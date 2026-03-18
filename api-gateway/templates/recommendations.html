@@ -16,10 +16,22 @@
 </section>
 
 <section class="card">
-    <h2>Recommended Book IDs</h2>
+    <h2>Recommended Books</h2>
     <ul>
-        {% for book_id in recommendations %}
-            <li>{{ book_id }}</li>
+        {% for book in recommendations %}
+            <li>
+                {% if book.image_url %}
+                    <div class="product-thumb-wrap" style="margin-bottom:8px;">
+                        <img src="{{ book.image_url }}" alt="{{ book.title|default:'Recommended book' }}" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                    </div>
+                {% endif %}
+                <strong>#{{ book.id }}</strong>
+                {% if book.title %}- {{ book.title }}{% endif %}
+                {% if book.author %} by {{ book.author }}{% endif %}
+                {% if book.price %} | Price: {{ book.price }}{% endif %}
+                {% if book.stock != None %} | Stock: {{ book.stock }}{% endif %}
+                {% if book.avg_rating != None %} | Avg rating: {{ book.avg_rating }}{% endif %}
+            </li>
         {% empty %}
             <li>No recommendation</li>
         {% endfor %}

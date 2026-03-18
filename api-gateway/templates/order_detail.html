@@ -15,6 +15,13 @@
             <li>Payment status: {% if payment %}{{ payment.status|default:"N/A" }}{% else %}N/A{% endif %}</li>
             <li>Shipment status: {% if shipment %}{{ shipment.status|default:"N/A" }}{% else %}N/A{% endif %}</li>
         </ul>
+        {% if order_book_images %}
+            <div class="product-thumb-wrap" style="margin-top:8px;">
+                {% for image_url in order_book_images %}
+                    <img src="{{ image_url }}" alt="Order {{ order.id }} item" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                {% endfor %}
+            </div>
+        {% endif %}
     {% else %}
         <p>Order not found.</p>
     {% endif %}

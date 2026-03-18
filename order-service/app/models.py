@@ -6,3 +6,4 @@ class Order(models.Model):
     status = models.CharField(max_length=50, default='PENDING')
     saga_state = models.CharField(max_length=50, default='PENDING')
     fail_reason = models.TextField(blank=True, default='')
+    book_ids = models.JSONField(default=list, blank=True)

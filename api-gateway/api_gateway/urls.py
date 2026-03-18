@@ -18,6 +18,7 @@ from .views import (
     order_list,
     payment_detail,
     payment_list,
+    product_image,
     recommendation_page,
     shipment_list,
 )
@@ -26,6 +27,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('health/', health, name='health'),
     path('metrics/', metrics, name='metrics'),
+    path('image/<str:filename>', product_image, name='product_image'),
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
     path('', home, name='home'),

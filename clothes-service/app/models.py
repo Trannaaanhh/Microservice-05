@@ -10,5 +10,6 @@ class Cloth(models.Model):
     material = models.CharField(max_length=100, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.IntegerField()
+    image_url = models.CharField(max_length=500, blank=True, default='')
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
