@@ -1,9 +1,9 @@
-﻿from pathlib import Path
 import os
+from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'dev-secret-key'
+SECRET_KEY = os.getenv('AUTH_SERVICE_SECRET_KEY', 'auth-service-dev-secret')
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 
@@ -28,7 +28,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'catalog_service.urls'
+ROOT_URLCONF = 'auth_service.urls'
 
 TEMPLATES = [
     {
@@ -45,12 +45,12 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'catalog_service.wsgi.application'
+WSGI_APPLICATION = 'auth_service.wsgi.application'
 
 DATABASES = {
     'default': {
         'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.getenv('DB_NAME', 'bookstore'),
+        'NAME': os.getenv('DB_NAME', 'api_gateway'),
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
         'HOST': os.getenv('DB_HOST', 'localhost'),

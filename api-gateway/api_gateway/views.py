@@ -1,8 +1,13 @@
+import os
+
 import requests
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
+
+from .metrics import snapshot
 
 
 BOOK_SERVICE_URL = "http://book-service:8000"
@@ -14,6 +19,7 @@ PAY_SERVICE_URL = "http://pay-service:8000"
 SHIP_SERVICE_URL = "http://ship-service:8000"
 COMMENT_RATE_SERVICE_URL = "http://comment-rate-service:8000"
 RECOMMENDER_AI_SERVICE_URL = "http://recommender-ai-service:8000"
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8000")
 
 
 def _safe_get_json(url):
@@ -38,6 +44,21 @@ def _post_json_with_error(url, payload, error_prefix):
         return f"{error_prefix}: {response.text}"
     except requests.RequestException as exc:
         return str(exc)
+
+
+def _issue_access_token(username, role):
+    try:
+        response = requests.post(
+            f"{AUTH_SERVICE_URL}/auth/token/",
+            json={"username": username, "role": role},
+            timeout=5,
+        )
+        if response.status_code != 200:
+            return None, f"Auth service token issue failed: {response.text}"
+        payload = response.json()
+        return payload.get("access_token"), None
+    except requests.RequestException as exc:
+        return None, str(exc)
 
 
 def _get_user_role(user):
@@ -83,6 +104,10 @@ def _ensure_cart_for_customer(customer_id):
         return None, str(exc)
 
 
+def _is_staff_user(user):
+    return _get_user_role(user) == "staff"
+
+
 def home(request):
     if not request.user.is_authenticated:
         return redirect("login")
@@ -94,7 +119,10 @@ def home(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect("home")
+        if request.session.get("access_token"):
+            return redirect("home")
+        # Prevent redirect loop: clear stale auth session without JWT.
+        logout(request)
 
     error = None
     if request.method == "POST" and not error:
@@ -138,6 +166,13 @@ def login_view(request):
                             error = cart_err
 
                 if not error:
+                    access_token, token_err = _issue_access_token(user.username, role)
+                    if token_err:
+                        error = token_err
+                    else:
+                        request.session["access_token"] = access_token
+
+                if not error:
                     login(request, user)
                     return redirect("home")
 
@@ -145,8 +180,19 @@ def login_view(request):
 
 
 def logout_view(request):
+    request.session.pop("access_token", None)
     logout(request)
     return redirect("login")
+
+
+def health(request):
+    return JsonResponse({"status": "ok", "service": "api-gateway"}, status=200)
+
+
+def metrics(request):
+    data = snapshot()
+    data["service"] = "api-gateway"
+    return JsonResponse(data, status=200)
 
 
 @login_required
@@ -176,7 +222,7 @@ def book_list(request):
                         error = _post_json_with_error(f"{CART_SERVICE_URL}/cart-items/", payload, "Add to cart failed")
                         if not error:
                             return redirect("books")
-            elif not is_customer:
+            elif _is_staff_user(request.user):
                 if action == "update_book":
                     book_id = int(request.POST.get("book_id", "0") or 0)
                     payload = {
@@ -210,7 +256,7 @@ def book_list(request):
                     else:
                         return redirect("books")
             else:
-                error = "Unsupported action for customer."
+                error = "Only staff can create, update, or delete books."
         except (TypeError, ValueError):
             error = "Invalid numeric input."
         except requests.RequestException as exc:
@@ -353,6 +399,7 @@ def clothes_list(request):
     error = None
     role = _get_user_role(request.user) or "customer"
     is_customer = role == "customer"
+    is_staff = role == "staff"
 
     search_query = request.GET.get("q", "").strip()
     size_filter = request.GET.get("size", "").strip()
@@ -362,8 +409,8 @@ def clothes_list(request):
 
     if request.method == "POST":
         action = request.POST.get("action", "")
-        if is_customer:
-            error = "Customers can only view clothes."
+        if not is_staff:
+            error = "Only staff can create, update, or delete clothes."
         else:
             try:
                 if action == "update_clothes":
@@ -686,13 +733,66 @@ def checkout(request):
     cart_total = round(sum(float(item.get("item_total", 0) or 0) for item in current_items), 2)
 
     if request.method == "POST" and not error:
+        stock_updates = []
+
+        # Validate stock before creating order.
+        for item in current_items:
+            book_id = _to_int(item.get("book_id"), 0)
+            quantity = _to_int(item.get("quantity"), 0)
+            book = book_map.get(book_id)
+
+            if not book:
+                error = f"Book #{book_id} not found."
+                break
+            if quantity <= 0:
+                error = f"Invalid quantity for book #{book_id}."
+                break
+
+            current_stock = _to_int(book.get("stock"), 0)
+            if current_stock < quantity:
+                error = f"Not enough stock for '{book.get('title', f'Book #{book_id}')}'. Available: {current_stock}, requested: {quantity}."
+                break
+
+            stock_updates.append(
+                {
+                    "book_id": book_id,
+                    "new_stock": current_stock - quantity,
+                    "old_stock": current_stock,
+                }
+            )
+
+    if request.method == "POST" and not error:
+        # Decrease stock first; if order creation fails we rollback best-effort.
+        for change in stock_updates:
+            book_id = change["book_id"]
+            stock_resp = requests.put(
+                f"{BOOK_SERVICE_URL}/books/{book_id}/",
+                json={"stock": change["new_stock"]},
+                timeout=5,
+            )
+            if stock_resp.status_code not in [200, 201]:
+                error = f"Update stock failed for book #{book_id}: {stock_resp.text}"
+                break
+
+    if request.method == "POST" and not error:
         payload = {
             "customer_id": current_customer_id,
             "payment_status": request.POST.get("payment_status", "PAID"),
             "shipment_status": request.POST.get("shipment_status", "SHIPPED"),
         }
         error = _post_json_with_error(f"{ORDER_SERVICE_URL}/orders/", payload, "Checkout failed")
-        if not error:
+        if error:
+            # Best-effort rollback of stock if order creation fails.
+            for change in stock_updates:
+                try:
+                    requests.put(
+                        f"{BOOK_SERVICE_URL}/books/{change['book_id']}/",
+                        json={"stock": change["old_stock"]},
+                        timeout=5,
+                    )
+                except requests.RequestException:
+                    pass
+        else:
             for item in current_items:
                 item_id = item.get("id")
                 try:

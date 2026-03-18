@@ -1,59 +1,214 @@
 services:
+  postgres:
+    image: postgres:18.1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_MULTIPLE_DATABASES: api_gateway,book_db,cart_db,customer_db,order_db,pay_db,ship_db,comment_db,recommender_db,clothes_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_db:/var/lib/postgresql
+      - ./scripts/create-multiple-postgres-databases.sh:/docker-entrypoint-initdb.d/create-multiple-postgres-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./auth-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=api_gateway
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - JWT_SECRET=dev-jwt-secret
+    ports:
+      - "8010:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   customer-service:
     build: ./customer-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=customer_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
     ports:
       - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   book-service:
     build: ./book-service
     environment:
-      - SQLITE_DB_PATH=/data/db.sqlite3
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=book_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
     ports:
       - "8002:8000"
-    volumes:
-      - book_service_db:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   cart-service:
     build: ./cart-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=cart_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
     ports:
       - "8003:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   order-service:
     build: ./order-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=order_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2F
     ports:
       - "8004:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   pay-service:
     build: ./pay-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=pay_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2F
     ports:
       - "8005:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   ship-service:
     build: ./ship-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=ship_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/%2F
     ports:
       - "8006:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   comment-rate-service:
     build: ./comment-rate-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=comment_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
     ports:
       - "8007:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   recommender-ai-service:
     build: ./recommender-ai-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=recommender_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
     ports:
       - "8008:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   clothes-service:
     build: ./clothes-service
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=clothes_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
     ports:
       - "8009:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   api-gateway:
     build: ./api-gateway
+    environment:
+      - DB_ENGINE=django.db.backends.postgresql
+      - DB_NAME=api_gateway
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - JWT_SECRET=dev-jwt-secret
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - RATE_LIMIT_PER_MINUTE=120
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
 
 volumes:
-  book_service_db:
+  postgres_db:
 
 

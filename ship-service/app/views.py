@@ -16,3 +16,20 @@ class ShipmentListCreate(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class HealthView(APIView):
+    def get(self, request):
+        return Response({"status": "ok", "service": "ship-service"})
+
+
+class MetricsView(APIView):
+    def get(self, request):
+        return Response(
+            {
+                "service": "ship-service",
+                "shipments_total": Shipment.objects.count(),
+                "shipments_reserved": Shipment.objects.filter(status='RESERVED').count(),
+                "shipments_released": Shipment.objects.filter(status='RELEASED').count(),
+            }
+        )

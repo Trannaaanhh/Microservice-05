@@ -11,6 +11,8 @@ from .views import (
     customer_list,
     home,
     login_view,
+    health,
+    metrics,
     logout_view,
     order_detail,
     order_list,
@@ -22,6 +24,8 @@ from .views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('health/', health, name='health'),
+    path('metrics/', metrics, name='metrics'),
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
     path('', home, name='home'),

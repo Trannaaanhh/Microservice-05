@@ -26,3 +26,20 @@ class PaymentDetail(APIView):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(PaymentSerializer(payment).data)
+
+
+class HealthView(APIView):
+    def get(self, request):
+        return Response({"status": "ok", "service": "pay-service"})
+
+
+class MetricsView(APIView):
+    def get(self, request):
+        return Response(
+            {
+                "service": "pay-service",
+                "payments_total": Payment.objects.count(),
+                "payments_reserved": Payment.objects.filter(status='RESERVED').count(),
+                "payments_released": Payment.objects.filter(status='RELEASED').count(),
+            }
+        )
