@@ -1,0 +1,44 @@
+from django.contrib import admin
+from django.urls import path
+from .views import (
+    book_detail,
+    book_list,
+    clothes_detail,
+    clothes_list,
+    cart_item_detail,
+    cart_list,
+    checkout,
+    customer_list,
+    home,
+    login_view,
+    logout_view,
+    order_detail,
+    order_list,
+    payment_detail,
+    payment_list,
+    recommendation_page,
+    shipment_list,
+)
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('login/', login_view, name='login'),
+    path('logout/', logout_view, name='logout'),
+    path('', home, name='home'),
+    path('books/', book_list, name='books'),
+    path('books/<int:book_id>/', book_detail, name='book_detail'),
+    path('clothes/', clothes_list, name='clothes'),
+    path('clothes/<int:clothes_id>/', clothes_detail, name='clothes_detail'),
+    path('customers/', customer_list, name='customers'),
+    path('carts/', cart_list, name='carts'),
+    path('checkout/', checkout, name='checkout'),
+    path('cart-items/<int:item_id>/', cart_item_detail, name='cart_item_detail'),
+    path('orders/', order_list, name='orders'),
+    path('orders/<int:order_id>/', order_detail, name='order_detail'),
+    path('payments/', payment_list, name='payments'),
+    path('payments/<int:payment_id>/', payment_detail, name='payment_detail'),
+    path('shipments/', shipment_list, name='shipments'),
+    path('recommendations/', recommendation_page, name='recommendations'),
+]
+
+

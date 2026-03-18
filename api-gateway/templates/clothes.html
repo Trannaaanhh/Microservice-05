@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Clothes{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>Clothes</h1>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+    <h2>Search Clothes</h2>
+    <form method="get" style="grid-template-columns: repeat(5, minmax(120px, 1fr)) 120px;">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Name or brand" />
+        <input type="text" name="size" value="{{ size_filter }}" placeholder="Size (S/M/L...)" />
+        <input type="text" name="color" value="{{ color_filter }}" placeholder="Color" />
+        <input type="number" step="0.01" name="min_price" value="{{ min_price }}" placeholder="Min price" />
+        <input type="number" step="0.01" name="max_price" value="{{ max_price }}" placeholder="Max price" />
+        <button type="submit">Search</button>
+    </form>
+
+    {% if not is_customer %}
+        <h2>Create Clothes</h2>
+        <form method="post" style="grid-template-columns: repeat(2, minmax(180px, 1fr));">
+            {% csrf_token %}
+            <input type="text" name="name" placeholder="Name" required />
+            <input type="text" name="brand" placeholder="Brand" />
+            <input type="text" name="category" placeholder="Category" />
+            <input type="text" name="size" placeholder="Size" required />
+            <input type="text" name="color" placeholder="Color" />
+            <input type="text" name="material" placeholder="Material" />
+            <input type="number" step="0.01" name="price" placeholder="Price" required />
+            <input type="number" name="stock" placeholder="Stock" required />
+            <textarea name="description" rows="3" placeholder="Description" style="grid-column: span 2;"></textarea>
+            <label style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" name="is_active" checked style="width:auto;" />
+                Active
+            </label>
+            <button type="submit">Create</button>
+        </form>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>Clothes List</h2>
+    <ul>
+        {% for clothes in clothes %}
+            <li>
+                <div>
+                    ID {{ clothes.id }} - <a href="{% url 'clothes_detail' clothes.id %}">{{ clothes.name }}</a>
+                    {% if clothes.brand %}- {{ clothes.brand }}{% endif %}
+                    - size {{ clothes.size }}
+                    {% if clothes.color %}- {{ clothes.color }}{% endif %}
+                    - ${{ clothes.price }} - stock {{ clothes.stock }}
+                </div>
+                {% if not is_customer %}
+                    <form method="post" style="margin-top: 10px; grid-template-columns: repeat(2, minmax(160px, 1fr));">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_clothes" />
+                        <input type="hidden" name="clothes_id" value="{{ clothes.id }}" />
+                        <input type="text" name="name" value="{{ clothes.name }}" required />
+                        <input type="text" name="brand" value="{{ clothes.brand }}" />
+                        <input type="text" name="category" value="{{ clothes.category }}" />
+                        <input type="text" name="size" value="{{ clothes.size }}" required />
+                        <input type="text" name="color" value="{{ clothes.color }}" />
+                        <input type="text" name="material" value="{{ clothes.material }}" />
+                        <input type="number" step="0.01" name="price" value="{{ clothes.price }}" required />
+                        <input type="number" name="stock" value="{{ clothes.stock }}" required />
+                        <textarea name="description" rows="2" style="grid-column: span 2;">{{ clothes.description }}</textarea>
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" name="is_active" {% if clothes.is_active %}checked{% endif %} style="width:auto;" />
+                            Active
+                        </label>
+                        <button type="submit">Update</button>
+                    </form>
+
+                    <form method="post" style="margin-top: 8px; grid-template-columns: 140px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_clothes" />
+                        <input type="hidden" name="clothes_id" value="{{ clothes.id }}" />
+                        <button type="submit">Delete</button>
+                    </form>
+                {% endif %}
+            </li>
+        {% empty %}
+            <li>No clothes</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endblock %}
+
+
