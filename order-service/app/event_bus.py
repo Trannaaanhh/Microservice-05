@@ -2,6 +2,7 @@ import json
 import os
 import time
 import uuid
+from typing import Any
 
 import pika
 
@@ -23,7 +24,7 @@ def rpc_call(queue_name, payload, timeout=8):
     callback_queue = result.method.queue
 
     correlation_id = str(uuid.uuid4())
-    response_holder = {'body': None}
+    response_holder: dict[str, Any] = {'body': None}
 
     def on_response(ch, method, props, body):
         if props.correlation_id == correlation_id:
