@@ -5,18 +5,19 @@
 {% block content %}
 <section class="card">
     <h1>Customer Home</h1>
-    <p>Xin chao {{ request.user.username }}. Ban dang dang nhap voi vai tro customer.</p>
+    <p>Hello {{ request.user.username }}. You are signed in as a customer.</p>
+    <p>Start shopping now: discover products, add to cart, complete checkout, and track your orders.</p>
 </section>
 
 <section class="card">
     <h2>Customer Actions</h2>
     <ul>
-        <li><a href="/books/">Xem sach</a></li>
-        <li><a href="/clothes/">Xem quan ao</a></li>
-        <li><a href="/carts/">Quan ly gio hang</a></li>
-        <li><a href="/orders/">Theo doi don hang</a></li>
-        <li><a href="/payments/">Xem thanh toan</a></li>
-        <li><a href="/recommendations/">Goi y sach</a></li>
+        <li><a href="/books/">Browse books and add them to your cart</a></li>
+        <li><a href="/clothes/">Browse clothes by size and color</a></li>
+        <li><a href="/carts/">Manage your current cart</a></li>
+        <li><a href="/orders/">Track your order history</a></li>
+        <li><a href="/payments/">View payment status</a></li>
+        <li><a href="/recommendations/">Get AI product recommendations</a></li>
     </ul>
 </section>
 {% endblock %}

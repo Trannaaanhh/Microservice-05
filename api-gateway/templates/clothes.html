@@ -4,7 +4,9 @@
 
 {% block content %}
 <section class="card">
+    <span class="eyebrow">Catalog</span>
     <h1>Clothes</h1>
+    <p>Filter by size, color, and price range to manage fashion inventory with speed.</p>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
     <h2>Search Clothes</h2>
@@ -16,10 +18,13 @@
         <input type="number" step="0.01" name="max_price" value="{{ max_price }}" placeholder="Max price" />
         <button type="submit">Search</button>
     </form>
+    {% if search_query or size_filter or color_filter or min_price or max_price %}
+        <p style="margin-top:10px;"><a href="/clothes/" class="button-link btn-secondary">Clear Filters</a></p>
+    {% endif %}
 
     {% if not is_customer %}
         <h2>Create Clothes</h2>
-        <form method="post" style="grid-template-columns: repeat(2, minmax(180px, 1fr));">
+        <form method="post" style="grid-template-columns: repeat(2, minmax(180px, 1fr));" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="text" name="name" placeholder="Name" required />
             <input type="text" name="brand" placeholder="Brand" />
@@ -30,6 +35,8 @@
             <input type="number" step="0.01" name="price" placeholder="Price" required />
             <input type="number" name="stock" placeholder="Stock" required />
             <input type="text" name="image_url" placeholder="Image URL (e.g. /image/Basic T-Shirt.png)" style="grid-column: span 2;" />
+            <input type="file" name="image_file" accept="image/*" style="grid-column: span 2;" />
+            <p style="margin:0; font-size:0.82rem; grid-column: span 2;">Tip: You can upload an image file or paste an image with Ctrl+V while focused in this form.</p>
             <textarea name="description" rows="3" placeholder="Description" style="grid-column: span 2;"></textarea>
             <label style="display:flex;align-items:center;gap:8px;">
                 <input type="checkbox" name="is_active" checked style="width:auto;" />
@@ -41,56 +48,68 @@
 </section>
 
 <section class="card">
-    <h2>Clothes List</h2>
-    <ul>
+    <div class="section-head">
+        <h2>Clothes List</h2>
+        <span class="status-badge">{{ clothes|length }} items</span>
+    </div>
+    <div class="cards-grid">
         {% for clothes in clothes %}
-            <li>
-                <div>
-                    ID {{ clothes.id }} - <a href="{% url 'clothes_detail' clothes.id %}">{{ clothes.name }}</a>
-                    {% if clothes.brand %}- {{ clothes.brand }}{% endif %}
-                    - size {{ clothes.size }}
-                    {% if clothes.color %}- {{ clothes.color }}{% endif %}
-                    - ${{ clothes.price }} - stock {{ clothes.stock }}
+            <article class="entity-card">
+                <div class="entity-title"><a href="{% url 'clothes_detail' clothes.id %}">{{ clothes.name }}</a></div>
+                <div class="entity-meta">
+                    {% if clothes.brand %}{{ clothes.brand }} | {% endif %}
+                    size {{ clothes.size }}
+                    {% if clothes.color %}| {{ clothes.color }}{% endif %}
+                    | ID {{ clothes.id }}
                 </div>
+                <div class="badge-row">
+                    <span class="status-badge">Stock {{ clothes.stock }}</span>
+                    <span data-status="{% if clothes.is_active %}ACTIVE{% else %}INACTIVE{% endif %}">{% if clothes.is_active %}ACTIVE{% else %}INACTIVE{% endif %}</span>
+                </div>
+                <div class="price">${{ clothes.price }}</div>
                 {% if clothes.image_url %}
                     <div class="product-thumb-wrap">
                         <img src="{{ clothes.image_url }}" alt="{{ clothes.name }}" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
                     </div>
                 {% endif %}
                 {% if not is_customer %}
-                    <form method="post" style="margin-top: 10px; grid-template-columns: repeat(2, minmax(160px, 1fr));">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="update_clothes" />
-                        <input type="hidden" name="clothes_id" value="{{ clothes.id }}" />
-                        <input type="text" name="name" value="{{ clothes.name }}" required />
-                        <input type="text" name="brand" value="{{ clothes.brand }}" />
-                        <input type="text" name="category" value="{{ clothes.category }}" />
-                        <input type="text" name="size" value="{{ clothes.size }}" required />
-                        <input type="text" name="color" value="{{ clothes.color }}" />
-                        <input type="text" name="material" value="{{ clothes.material }}" />
-                        <input type="number" step="0.01" name="price" value="{{ clothes.price }}" required />
-                        <input type="number" name="stock" value="{{ clothes.stock }}" required />
-                        <input type="text" name="image_url" value="{{ clothes.image_url }}" placeholder="/image/file.png" style="grid-column: span 2;" />
-                        <textarea name="description" rows="2" style="grid-column: span 2;">{{ clothes.description }}</textarea>
-                        <label style="display:flex;align-items:center;gap:8px;">
-                            <input type="checkbox" name="is_active" {% if clothes.is_active %}checked{% endif %} style="width:auto;" />
-                            Active
-                        </label>
-                        <button type="submit">Update</button>
-                    </form>
+                    <details class="edit-panel">
+                        <summary>Edit This Item</summary>
+                        <form method="post" class="product-edit-form" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_clothes" />
+                            <input type="hidden" name="clothes_id" value="{{ clothes.id }}" />
+                            <input type="text" name="name" value="{{ clothes.name }}" placeholder="Name" required />
+                            <input type="text" name="brand" value="{{ clothes.brand }}" placeholder="Brand" />
+                            <input type="text" name="category" value="{{ clothes.category }}" placeholder="Category" />
+                            <input type="text" name="size" value="{{ clothes.size }}" placeholder="Size" required />
+                            <input type="text" name="color" value="{{ clothes.color }}" placeholder="Color" />
+                            <input type="text" name="material" value="{{ clothes.material }}" placeholder="Material" />
+                            <input type="number" step="0.01" name="price" value="{{ clothes.price }}" placeholder="Price" required />
+                            <input type="number" name="stock" value="{{ clothes.stock }}" placeholder="Stock" required />
+                            <input type="text" name="image_url" value="{{ clothes.image_url }}" placeholder="/image/file.png" class="span-2" />
+                            <input type="file" name="image_file" accept="image/*" class="span-2" />
+                            <textarea name="description" rows="2" class="span-2">{{ clothes.description }}</textarea>
+                            <label class="span-2" style="display:flex;align-items:center;gap:8px;">
+                                <input type="checkbox" name="is_active" {% if clothes.is_active %}checked{% endif %} style="width:auto;" />
+                                Active
+                            </label>
+                            <button type="submit" class="span-2">Update Item</button>
+                        </form>
+                    </details>
 
-                    <form method="post" style="margin-top: 8px; grid-template-columns: 140px;">
+                    <form method="post" class="product-delete-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="delete_clothes" />
                         <input type="hidden" name="clothes_id" value="{{ clothes.id }}" />
                         <button type="submit">Delete</button>
                     </form>
                 {% endif %}
-            </li>
+            </article>
         {% empty %}
-            <li>No clothes</li>
+            <p>No clothes</p>
         {% endfor %}
-    </ul>
+    </div>
 </section>
 {% endblock %}
 

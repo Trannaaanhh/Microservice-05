@@ -4,6 +4,7 @@
 
 {% block content %}
 <section class="card">
+    <span class="eyebrow">Finance</span>
     <h1>Payments</h1>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
@@ -19,16 +20,45 @@
 </section>
 
 <section class="card">
-    <h2>{% if is_customer %}Payment History{% else %}Payment List{% endif %}</h2>
-    <ul>
+    <div class="section-head">
+        <h2>{% if is_customer %}Payment History{% else %}Payment List{% endif %}</h2>
+        <span class="status-badge">{{ payments|length }} items</span>
+    </div>
+    <div class="cards-grid">
         {% for payment in payments %}
-            <li>
+            <article class="entity-card">
+                <div class="entity-title">
+                    {% if not is_customer %}
+                        <a href="{% url 'payment_detail' payment.id %}">Payment #{{ payment.id }}</a>
+                    {% else %}
+                        Payment #{{ payment.id }}
+                    {% endif %}
+                </div>
+                <div class="entity-meta">Order #{{ payment.order_id }}</div>
+                <div class="badge-row">
+                    <span data-status="{{ payment.status|default:'UNKNOWN' }}">{{ payment.status|default:'UNKNOWN' }}</span>
+                </div>
                 {% if not is_customer %}
-                    <a href="{% url 'payment_detail' payment.id %}">
-                        ID {{ payment.id }} - order {{ payment.order_id }} - status {{ payment.status }}
-                    </a>
-                {% else %}
-                    ID {{ payment.id }} - order {{ payment.order_id }} - status {{ payment.status }}
+                    <form method="post" style="grid-template-columns: minmax(130px, 1fr) 130px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_payment" />
+                        <input type="hidden" name="payment_id" value="{{ payment.id }}" />
+                        <select name="status" required>
+                            <option value="PAID" {% if payment.status == 'PAID' %}selected{% endif %}>PAID</option>
+                            <option value="PENDING" {% if payment.status == 'PENDING' %}selected{% endif %}>PENDING</option>
+                            <option value="FAILED" {% if payment.status == 'FAILED' %}selected{% endif %}>FAILED</option>
+                            <option value="RESERVED" {% if payment.status == 'RESERVED' %}selected{% endif %}>RESERVED</option>
+                            <option value="RELEASED" {% if payment.status == 'RELEASED' %}selected{% endif %}>RELEASED</option>
+                        </select>
+                        <button type="submit">Update</button>
+                    </form>
+
+                    <form method="post" style="grid-template-columns: 130px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_payment" />
+                        <input type="hidden" name="payment_id" value="{{ payment.id }}" />
+                        <button type="submit">Delete</button>
+                    </form>
                 {% endif %}
                 {% if payment.book_images %}
                     <div class="product-thumb-wrap">
@@ -37,10 +67,10 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-            </li>
+            </article>
         {% empty %}
-            <li>No payments</li>
+            <p>No payments</p>
         {% endfor %}
-    </ul>
+    </div>
 </section>
 {% endblock %}

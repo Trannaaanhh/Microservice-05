@@ -4,6 +4,7 @@
 
 {% block content %}
 <section class="card">
+    <span class="eyebrow">Operations</span>
     <h1>Orders</h1>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
@@ -31,16 +32,45 @@
 </section>
 
 <section class="card">
-    <h2>{% if is_customer %}Order History{% else %}Order List{% endif %}</h2>
-    <ul>
+    <div class="section-head">
+        <h2>{% if is_customer %}Order History{% else %}Order List{% endif %}</h2>
+        <span class="status-badge">{{ orders|length }} items</span>
+    </div>
+    <div class="cards-grid">
         {% for order in orders %}
-            <li>
+            <article class="entity-card">
+                <div class="entity-title">
+                    {% if not is_customer %}
+                        <a href="{% url 'order_detail' order.id %}">Order #{{ order.id }}</a>
+                    {% else %}
+                        Order #{{ order.id }}
+                    {% endif %}
+                </div>
+                <div class="entity-meta">Customer #{{ order.customer_id }}</div>
+                <div class="badge-row">
+                    <span data-status="{{ order.status|default:'UNKNOWN' }}">Order: {{ order.status|default:'UNKNOWN' }}</span>
+                    <span data-status="{{ order.payment_status|default:'UNKNOWN' }}">Payment: {{ order.payment_status|default:'UNKNOWN' }}</span>
+                    <span data-status="{{ order.shipment_status|default:'UNKNOWN' }}">Shipment: {{ order.shipment_status|default:'UNKNOWN' }}</span>
+                </div>
                 {% if not is_customer %}
-                    <a href="{% url 'order_detail' order.id %}">
-                        ID {{ order.id }} - customer {{ order.customer_id }} - order {{ order.status }} - payment {{ order.payment_status }} - shipment {{ order.shipment_status }}
-                    </a>
-                {% else %}
-                    ID {{ order.id }} - customer {{ order.customer_id }} - order {{ order.status }} - payment {{ order.payment_status }} - shipment {{ order.shipment_status }}
+                    <form method="post" style="grid-template-columns: minmax(130px, 1fr) 130px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_order" />
+                        <input type="hidden" name="order_id" value="{{ order.id }}" />
+                        <select name="status" required>
+                            <option value="PENDING" {% if order.status == 'PENDING' %}selected{% endif %}>PENDING</option>
+                            <option value="CONFIRMED" {% if order.status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
+                            <option value="FAILED" {% if order.status == 'FAILED' %}selected{% endif %}>FAILED</option>
+                        </select>
+                        <button type="submit">Update</button>
+                    </form>
+
+                    <form method="post" style="grid-template-columns: 130px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_order" />
+                        <input type="hidden" name="order_id" value="{{ order.id }}" />
+                        <button type="submit">Delete</button>
+                    </form>
                 {% endif %}
                 {% if order.book_images %}
                     <div class="product-thumb-wrap">
@@ -49,10 +79,10 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-            </li>
+            </article>
         {% empty %}
-            <li>No orders</li>
+            <p>No orders</p>
         {% endfor %}
-    </ul>
+    </div>
 </section>
 {% endblock %}

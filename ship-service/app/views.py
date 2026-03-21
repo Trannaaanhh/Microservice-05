@@ -18,6 +18,38 @@ class ShipmentListCreate(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ShipmentDetail(APIView):
+    def _get_shipment(self, pk):
+        try:
+            return Shipment.objects.get(pk=pk)
+        except Shipment.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        shipment = self._get_shipment(pk)
+        if not shipment:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(ShipmentSerializer(shipment).data)
+
+    def put(self, request, pk):
+        shipment = self._get_shipment(pk)
+        if not shipment:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ShipmentSerializer(shipment, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        shipment = self._get_shipment(pk)
+        if not shipment:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        shipment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class HealthView(APIView):
     def get(self, request):
         return Response({"status": "ok", "service": "ship-service"})

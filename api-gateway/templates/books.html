@@ -4,39 +4,49 @@
 
 {% block content %}
 <section class="card">
+    <span class="eyebrow">Catalog</span>
     <h1>Books</h1>
+    <p>Browse products quickly, search by keyword, and manage inventory from one panel.</p>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
     <h2>Search Book</h2>
     <form method="get" style="grid-template-columns: minmax(240px, 1fr) 120px 120px;">
         <input type="text" name="q" value="{{ search_query }}" placeholder="Search by title or keyword" />
         <button type="submit">Search</button>
-        {% if search_query %}<a href="/books/">Clear</a>{% endif %}
+        {% if search_query %}<a href="/books/" class="button-link btn-secondary">Clear</a>{% endif %}
     </form>
 
     {% if not is_customer %}
         <h2>Create Book</h2>
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="text" name="title" placeholder="Title" required />
             <input type="text" name="author" placeholder="Author" required />
             <input type="number" step="0.01" name="price" placeholder="Price" required />
             <input type="number" name="stock" placeholder="Stock" required />
             <input type="text" name="image_url" placeholder="Image URL (e.g. /image/cleancode.png)" />
+            <input type="file" name="image_file" accept="image/*" />
+            <p style="margin:0; font-size:0.82rem;">Tip: You can upload an image file or paste an image with Ctrl+V while focused in this form.</p>
             <button type="submit">Create</button>
         </form>
     {% endif %}
 </section>
 
 <section class="card">
-    <h2>Book List</h2>
+    <div class="section-head">
+        <h2>Book List</h2>
+        <span class="status-badge">{{ books|length }} items</span>
+    </div>
     <div id="cart-feedback" style="margin-bottom:10px;"></div>
-    <ul>
+    <div class="cards-grid">
         {% for book in books %}
-            <li>
-                <div>
-                    ID {{ book.id }} - <a href="{% url 'book_detail' book.id %}">{{ book.title }}</a> - {{ book.author }} - ${{ book.price }} - stock {{ book.stock }}
+            <article class="entity-card">
+                <div class="entity-title"><a href="{% url 'book_detail' book.id %}">{{ book.title }}</a></div>
+                <div class="entity-meta">{{ book.author }} | ID {{ book.id }}</div>
+                <div class="badge-row">
+                    <span class="status-badge">Stock {{ book.stock }}</span>
                 </div>
+                <div class="price">${{ book.price }}</div>
                 {% if book.image_url %}
                     <div class="product-thumb-wrap">
                         <img src="{{ book.image_url }}" alt="{{ book.title }}" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
@@ -51,30 +61,34 @@
                         <button type="submit">Add to cart</button>
                     </form>
                 {% else %}
-                    <form method="post" style="margin-top: 10px; grid-template-columns: repeat(6, minmax(120px, 1fr));">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="update_book" />
-                        <input type="hidden" name="book_id" value="{{ book.id }}" />
-                        <input type="text" name="title" value="{{ book.title }}" required />
-                        <input type="text" name="author" value="{{ book.author }}" required />
-                        <input type="number" step="0.01" name="price" value="{{ book.price }}" required />
-                        <input type="number" name="stock" value="{{ book.stock }}" required />
-                        <input type="text" name="image_url" value="{{ book.image_url }}" placeholder="/image/file.png" />
-                        <button type="submit">Update</button>
-                    </form>
+                    <details class="edit-panel">
+                        <summary>Edit This Book</summary>
+                        <form method="post" class="product-edit-form" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_book" />
+                            <input type="hidden" name="book_id" value="{{ book.id }}" />
+                            <input type="text" name="title" value="{{ book.title }}" placeholder="Title" required />
+                            <input type="text" name="author" value="{{ book.author }}" placeholder="Author" required />
+                            <input type="number" step="0.01" name="price" value="{{ book.price }}" placeholder="Price" required />
+                            <input type="number" name="stock" value="{{ book.stock }}" placeholder="Stock" required />
+                            <input type="text" name="image_url" value="{{ book.image_url }}" placeholder="/image/file.png" class="span-2" />
+                            <input type="file" name="image_file" accept="image/*" class="span-2" />
+                            <button type="submit" class="span-2">Update Book</button>
+                        </form>
+                    </details>
 
-                    <form method="post" style="margin-top: 8px; grid-template-columns: 140px;">
+                    <form method="post" class="product-delete-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="delete_book" />
                         <input type="hidden" name="book_id" value="{{ book.id }}" />
                         <button type="submit">Delete</button>
                     </form>
                 {% endif %}
-            </li>
+            </article>
         {% empty %}
-            <li>No books</li>
+            <p>No books</p>
         {% endfor %}
-    </ul>
+    </div>
 </section>
 
 {% if is_customer %}

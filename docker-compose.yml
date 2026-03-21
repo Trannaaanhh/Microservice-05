@@ -204,7 +204,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./image:/app/image:ro
+      - ./image:/app/image
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,95 +1,117 @@
 # Bookstore Microservice - Docker Guide
 
-## Prerequisites
+Tai lieu nay giup ban chay nhanh toan bo he thong microservice bang Docker Compose.
 
-- Docker Desktop is running
-- Docker Compose CLI is available (`docker compose version`)
+## 1) Dieu kien can
 
-## Run all services
+- Docker Desktop dang chay
+- Docker Compose san sang: `docker compose version`
 
-```bash
-docker compose up --build
-```
+## 2) Chay nhanh (khuyen dung)
 
-## Run all services in detached mode
+Chay toan bo service o che do nen:
 
 ```bash
 docker compose up --build -d
 ```
 
-## Stop all services
-
-```bash
-docker compose down
-```
-
-## Rebuild images only
-
-```bash
-docker compose build
-```
-
-## Rebuild and restart a single service
-
-```bash
-docker compose up --build -d book-service
-```
-
-## View logs
-
-```bash
-docker compose logs -f
-```
-
-## View logs for one service
-
-```bash
-docker compose logs -f order-service
-```
-
-## Check running containers
+Kiem tra container da len day du:
 
 ```bash
 docker compose ps
 ```
 
-## Quick API checks
+Xem log toan he thong:
 
-- API Gateway: http://localhost:8000/books/
-- Customer Service: http://localhost:8001/customers/
-- Book Service: http://localhost:8002/books/
-- Cart Service: http://localhost:8003/carts/
-- Order Service: http://localhost:8004/orders/
-- Pay Service: http://localhost:8005/payments/
-- Ship Service: http://localhost:8006/shipments/
-- Comment Rate Service: http://localhost:8007/ratings/
-- Recommender AI Service: http://localhost:8008/recommendations/1/
-- Clothes Service: http://localhost:8009/clothes/
+```bash
+docker compose logs -f
+```
 
-## Product image support
+## 3) Lenh thong dung
 
-- Product images are served by API Gateway from `./image` via: `http://localhost:8000/image/<filename>`
-- Current seeded images:
+Chay foreground (hien log truc tiep):
+
+```bash
+docker compose up --build
+```
+
+Dung toan bo he thong:
+
+```bash
+docker compose down
+```
+
+Build lai image (khong khoi dong lai):
+
+```bash
+docker compose build
+```
+
+Build va khoi dong lai 1 service (vi du book-service):
+
+```bash
+docker compose up --build -d book-service
+```
+
+Xem log 1 service (vi du order-service):
+
+```bash
+docker compose logs -f order-service
+```
+
+## 4) Danh sach API nhanh
+
+| Service | URL |
+|---|---|
+| API Gateway | http://localhost:8000/books/ |
+| Customer Service | http://localhost:8001/customers/ |
+| Book Service | http://localhost:8002/books/ |
+| Cart Service | http://localhost:8003/carts/ |
+| Order Service | http://localhost:8004/orders/ |
+| Pay Service | http://localhost:8005/payments/ |
+| Ship Service | http://localhost:8006/shipments/ |
+| Comment Rate Service | http://localhost:8007/ratings/ |
+| Recommender AI Service | http://localhost:8008/recommendations/1/ |
+| Clothes Service | http://localhost:8009/clothes/ |
+
+## 5) Luu y khi sua giao dien (templates)
+
+- Giao dien storefront trong API Gateway da duoc thiet ke lai.
+- Trong repo nay, khi sua template/HTML/CSS trong container, can build lai image de thay doi co hieu luc.
+- Lenh khuyen dung:
+
+```bash
+docker compose up --build -d
+```
+
+## 6) Ho tro hinh anh san pham
+
+- API Gateway phuc vu anh tu thu muc `./image` theo duong dan:
+	`http://localhost:8000/image/<filename>`
+- Anh da seed san:
 	- Books: `cleancode.png`, `designpatterns.png`, `refactoring.png`
 	- Clothes: `Basic T-Shirt.png`, `DenimJacket.png`
-- Image thumbnails are shown in:
+- Thumbnail dang duoc hien thi o:
 	- Books, Book Detail
 	- Clothes, Clothes Detail
 	- Carts, Checkout
-	- Orders (including Order History), Order Detail
+	- Orders (gom Order History), Order Detail
 	- Shipments
 	- Payments, Payment Detail
 	- Recommendations
-- If an image URL is missing or broken, UI automatically falls back to `/image/product-placeholder.svg`.
+- Neu URL anh thieu hoac loi, UI se tu dong fallback ve `/image/product-placeholder.svg`.
 
-## Common issue
+## 7) Loi thuong gap tren Windows
 
-If you see daemon/pipe errors on Windows (for example `dockerDesktopLinuxEngine`), start Docker Desktop first, then run:
+Neu gap loi daemon/pipe (vi du `dockerDesktopLinuxEngine`):
+
+1. Mo Docker Desktop.
+2. Chay lenh kiem tra:
 
 ```bash
 docker info
 ```
 
-If `Server` information appears, run compose commands again.
+3. Neu thay thong tin `Server`, chay lai lenh compose.
 
 

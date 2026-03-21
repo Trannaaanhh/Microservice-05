@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import requests
@@ -46,6 +47,51 @@ def _post_json_with_error(url, payload, error_prefix):
         return f"{error_prefix}: {response.text}"
     except requests.RequestException as exc:
         return str(exc)
+
+
+def _slugify_filename_base(value, default="product"):
+    raw = str(value or "").strip().lower().replace("&", " and ")
+    slug = re.sub(r"[^a-z0-9]+", "-", raw).strip("-")
+    return slug or default
+
+
+def _save_uploaded_image(uploaded_file, preferred_name=None):
+    if not uploaded_file:
+        return None, None
+
+    suffix = Path(uploaded_file.name or "").suffix.lower()
+    if not suffix:
+        content_type = str(getattr(uploaded_file, "content_type", "") or "").lower()
+        if "png" in content_type:
+            suffix = ".png"
+        elif "jpeg" in content_type or "jpg" in content_type:
+            suffix = ".jpg"
+        elif "webp" in content_type:
+            suffix = ".webp"
+        elif "gif" in content_type:
+            suffix = ".gif"
+        else:
+            suffix = ".png"
+
+    source_stem = Path(uploaded_file.name or "image").stem
+    base_name = _slugify_filename_base(preferred_name or source_stem, default="product")
+
+    try:
+        IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+        file_name = f"{base_name}{suffix}"
+        destination = IMAGE_DIR / file_name
+        sequence = 2
+        while destination.exists():
+            file_name = f"{base_name}-{sequence}{suffix}"
+            destination = IMAGE_DIR / file_name
+            sequence += 1
+
+        with destination.open("wb") as handle:
+            for chunk in uploaded_file.chunks():
+                handle.write(chunk)
+        return f"/image/{file_name}", None
+    except OSError as exc:
+        return None, f"Save image failed: {exc}"
 
 
 def _issue_access_token(username, role):
@@ -209,9 +255,11 @@ def product_image(request, filename):
 @login_required
 def book_list(request):
     error = None
+    success_message = None
     role = _get_user_role(request.user) or "customer"
     is_customer = role == "customer"
     search_query = request.GET.get("q", "").strip()
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     if request.method == "POST":
         action = request.POST.get("action", "")
@@ -232,23 +280,50 @@ def book_list(request):
                         }
                         error = _post_json_with_error(f"{CART_SERVICE_URL}/cart-items/", payload, "Add to cart failed")
                         if not error:
-                            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                            if is_ajax:
                                 return JsonResponse({"ok": True, "message": "Added to cart."}, status=200)
                             return redirect("books")
             elif _is_staff_user(request.user):
                 if action == "update_book":
                     book_id = int(request.POST.get("book_id", "0") or 0)
+                    image_url = request.POST.get("image_url", "").strip()
+                    uploaded_image = request.FILES.get("image_file")
+                    preferred_name = request.POST.get("title", "")
+                    saved_url, image_err = _save_uploaded_image(uploaded_image, preferred_name=preferred_name)
+                    if image_err:
+                        error = image_err
+                    if saved_url:
+                        image_url = saved_url
+
+                    if error:
+                        if is_ajax:
+                            return JsonResponse({"ok": False, "error": error}, status=400)
+                        books, fetch_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
+                        return render(
+                            request,
+                            "books.html",
+                            {
+                                "books": books,
+                                "error": error or fetch_error,
+                                "is_customer": is_customer,
+                                "search_query": search_query,
+                            },
+                        )
+
                     payload = {
                         "title": request.POST.get("title", ""),
                         "author": request.POST.get("author", ""),
                         "price": request.POST.get("price", "0"),
                         "stock": int(request.POST.get("stock", "0") or 0),
-                        "image_url": request.POST.get("image_url", "").strip(),
+                        "image_url": image_url,
                     }
                     update_resp = requests.put(f"{BOOK_SERVICE_URL}/books/{book_id}/", json=payload, timeout=5)
                     if update_resp.status_code not in [200, 201]:
                         error = f"Update book failed: {update_resp.text}"
                     else:
+                        success_message = "Book updated successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
                         return redirect("books")
                 elif action == "delete_book":
                     book_id = int(request.POST.get("book_id", "0") or 0)
@@ -256,19 +331,49 @@ def book_list(request):
                     if delete_resp.status_code not in [200, 204]:
                         error = f"Delete book failed: {delete_resp.text}"
                     else:
+                        success_message = "Book deleted successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
                         return redirect("books")
                 else:
+                    image_url = request.POST.get("image_url", "").strip()
+                    uploaded_image = request.FILES.get("image_file")
+                    preferred_name = request.POST.get("title", "")
+                    saved_url, image_err = _save_uploaded_image(uploaded_image, preferred_name=preferred_name)
+                    if image_err:
+                        error = image_err
+                    if saved_url:
+                        image_url = saved_url
+
+                    if error:
+                        if is_ajax:
+                            return JsonResponse({"ok": False, "error": error}, status=400)
+                        books, fetch_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
+                        return render(
+                            request,
+                            "books.html",
+                            {
+                                "books": books,
+                                "error": error or fetch_error,
+                                "is_customer": is_customer,
+                                "search_query": search_query,
+                            },
+                        )
+
                     payload = {
                         "title": request.POST.get("title", ""),
                         "author": request.POST.get("author", ""),
                         "price": request.POST.get("price", "0"),
                         "stock": int(request.POST.get("stock", "0") or 0),
-                        "image_url": request.POST.get("image_url", "").strip(),
+                        "image_url": image_url,
                     }
                     create_resp = requests.post(f"{BOOK_SERVICE_URL}/books/", json=payload, timeout=5)
                     if create_resp.status_code not in [200, 201]:
                         error = f"Create book failed: {create_resp.text}"
                     else:
+                        success_message = "Book created successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=201)
                         return redirect("books")
             else:
                 error = "Only staff can create, update, or delete books."
@@ -277,7 +382,7 @@ def book_list(request):
         except requests.RequestException as exc:
             error = str(exc)
 
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        if is_ajax:
             return JsonResponse({"ok": False, "error": error or "Request failed."}, status=400)
 
     books, fetch_error = _safe_get_json(f"{BOOK_SERVICE_URL}/books/")
@@ -415,9 +520,11 @@ def book_detail(request, book_id):
 @login_required
 def clothes_list(request):
     error = None
+    success_message = None
     role = _get_user_role(request.user) or "customer"
     is_customer = role == "customer"
     is_staff = role == "staff"
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     search_query = request.GET.get("q", "").strip()
     size_filter = request.GET.get("size", "").strip()
@@ -433,6 +540,50 @@ def clothes_list(request):
             try:
                 if action == "update_clothes":
                     clothes_id = _to_int(request.POST.get("clothes_id", "0"), 0)
+                    image_url = request.POST.get("image_url", "").strip()
+                    uploaded_image = request.FILES.get("image_file")
+                    preferred_name = request.POST.get("name", "")
+                    saved_url, image_err = _save_uploaded_image(uploaded_image, preferred_name=preferred_name)
+                    if image_err:
+                        error = image_err
+                    if saved_url:
+                        image_url = saved_url
+
+                    if error:
+                        if is_ajax:
+                            return JsonResponse({"ok": False, "error": error}, status=400)
+                        clothes = []
+                        try:
+                            response = requests.get(
+                                f"{CLOTHES_SERVICE_URL}/clothes/",
+                                params={
+                                    "q": search_query,
+                                    "size": size_filter,
+                                    "color": color_filter,
+                                    "min_price": min_price,
+                                    "max_price": max_price,
+                                },
+                                timeout=5,
+                            )
+                            if response.status_code == 200:
+                                clothes = response.json()
+                        except requests.RequestException:
+                            pass
+                        return render(
+                            request,
+                            "clothes.html",
+                            {
+                                "clothes": clothes,
+                                "error": error,
+                                "is_customer": is_customer,
+                                "search_query": search_query,
+                                "size_filter": size_filter,
+                                "color_filter": color_filter,
+                                "min_price": min_price,
+                                "max_price": max_price,
+                            },
+                        )
+
                     payload = {
                         "name": request.POST.get("name", ""),
                         "brand": request.POST.get("brand", ""),
@@ -442,7 +593,7 @@ def clothes_list(request):
                         "material": request.POST.get("material", ""),
                         "price": request.POST.get("price", "0"),
                         "stock": _to_int(request.POST.get("stock", "0"), 0),
-                        "image_url": request.POST.get("image_url", "").strip(),
+                        "image_url": image_url,
                         "description": request.POST.get("description", ""),
                         "is_active": request.POST.get("is_active") == "on",
                     }
@@ -450,6 +601,9 @@ def clothes_list(request):
                     if update_resp.status_code not in [200, 201]:
                         error = f"Update clothes failed: {update_resp.text}"
                     else:
+                        success_message = "Clothes updated successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
                         return redirect("clothes")
                 elif action == "delete_clothes":
                     clothes_id = _to_int(request.POST.get("clothes_id", "0"), 0)
@@ -457,8 +611,55 @@ def clothes_list(request):
                     if delete_resp.status_code not in [200, 204]:
                         error = f"Delete clothes failed: {delete_resp.text}"
                     else:
+                        success_message = "Clothes deleted successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
                         return redirect("clothes")
                 else:
+                    image_url = request.POST.get("image_url", "").strip()
+                    uploaded_image = request.FILES.get("image_file")
+                    preferred_name = request.POST.get("name", "")
+                    saved_url, image_err = _save_uploaded_image(uploaded_image, preferred_name=preferred_name)
+                    if image_err:
+                        error = image_err
+                    if saved_url:
+                        image_url = saved_url
+
+                    if error:
+                        if is_ajax:
+                            return JsonResponse({"ok": False, "error": error}, status=400)
+                        clothes = []
+                        try:
+                            response = requests.get(
+                                f"{CLOTHES_SERVICE_URL}/clothes/",
+                                params={
+                                    "q": search_query,
+                                    "size": size_filter,
+                                    "color": color_filter,
+                                    "min_price": min_price,
+                                    "max_price": max_price,
+                                },
+                                timeout=5,
+                            )
+                            if response.status_code == 200:
+                                clothes = response.json()
+                        except requests.RequestException:
+                            pass
+                        return render(
+                            request,
+                            "clothes.html",
+                            {
+                                "clothes": clothes,
+                                "error": error,
+                                "is_customer": is_customer,
+                                "search_query": search_query,
+                                "size_filter": size_filter,
+                                "color_filter": color_filter,
+                                "min_price": min_price,
+                                "max_price": max_price,
+                            },
+                        )
+
                     payload = {
                         "name": request.POST.get("name", ""),
                         "brand": request.POST.get("brand", ""),
@@ -468,7 +669,7 @@ def clothes_list(request):
                         "material": request.POST.get("material", ""),
                         "price": request.POST.get("price", "0"),
                         "stock": _to_int(request.POST.get("stock", "0"), 0),
-                        "image_url": request.POST.get("image_url", "").strip(),
+                        "image_url": image_url,
                         "description": request.POST.get("description", ""),
                         "is_active": request.POST.get("is_active") == "on",
                     }
@@ -476,11 +677,17 @@ def clothes_list(request):
                     if create_resp.status_code not in [200, 201]:
                         error = f"Create clothes failed: {create_resp.text}"
                     else:
+                        success_message = "Clothes created successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=201)
                         return redirect("clothes")
             except (TypeError, ValueError):
                 error = "Invalid numeric input."
             except requests.RequestException as exc:
                 error = str(exc)
+
+        if is_ajax and error:
+            return JsonResponse({"ok": False, "error": error}, status=400)
 
     clothes = []
     try:
@@ -844,8 +1051,11 @@ def checkout(request):
 @login_required
 def order_list(request):
     error = None
+    success_message = None
     role = _get_user_role(request.user) or "customer"
     is_customer = role == "customer"
+    is_staff = role == "staff"
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     current_customer_id = None
 
     if is_customer:
@@ -853,19 +1063,54 @@ def order_list(request):
         if customer_err:
             error = customer_err
 
-    if request.method == "POST" and not is_customer:
-        try:
-            customer_id_value = current_customer_id if is_customer else _to_int(request.POST.get("customer_id", "0"), 0)
-            payload = {
-                "customer_id": customer_id_value,
-                "payment_status": request.POST.get("payment_status", "PAID"),
-                "shipment_status": request.POST.get("shipment_status", "SHIPPED"),
-            }
-            error = _post_json_with_error(f"{ORDER_SERVICE_URL}/orders/", payload, "Create order failed")
-            if not error:
-                return redirect("orders")
-        except (TypeError, ValueError):
-            error = "Invalid customer_id input."
+    if request.method == "POST":
+        action = request.POST.get("action", "").strip().lower()
+        if not is_staff:
+            error = "Only staff can modify orders."
+        else:
+            try:
+                if action == "update_order":
+                    order_id = _to_int(request.POST.get("order_id", "0"), 0)
+                    payload = {
+                        "status": request.POST.get("status", "PENDING"),
+                    }
+                    resp = requests.put(f"{ORDER_SERVICE_URL}/orders/{order_id}/", json=payload, timeout=5)
+                    if resp.status_code not in [200, 201]:
+                        error = f"Update order failed: {resp.text}"
+                    else:
+                        success_message = "Order updated successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
+                        return redirect("orders")
+                elif action == "delete_order":
+                    order_id = _to_int(request.POST.get("order_id", "0"), 0)
+                    resp = requests.delete(f"{ORDER_SERVICE_URL}/orders/{order_id}/", timeout=5)
+                    if resp.status_code not in [200, 204]:
+                        error = f"Delete order failed: {resp.text}"
+                    else:
+                        success_message = "Order deleted successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
+                        return redirect("orders")
+                else:
+                    payload = {
+                        "customer_id": _to_int(request.POST.get("customer_id", "0"), 0),
+                        "payment_status": request.POST.get("payment_status", "PAID"),
+                        "shipment_status": request.POST.get("shipment_status", "SHIPPED"),
+                    }
+                    error = _post_json_with_error(f"{ORDER_SERVICE_URL}/orders/", payload, "Create order failed")
+                    if not error:
+                        success_message = "Order created successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=201)
+                        return redirect("orders")
+            except (TypeError, ValueError):
+                error = "Invalid numeric input."
+            except requests.RequestException as exc:
+                error = str(exc)
+
+        if is_ajax:
+            return JsonResponse({"ok": False, "error": error or "Order action failed."}, status=400)
 
     orders, fetch_error = _safe_get_json(f"{ORDER_SERVICE_URL}/orders/")
 
@@ -978,8 +1223,11 @@ def order_detail(request, order_id):
 @login_required
 def payment_list(request):
     error = None
+    success_message = None
     role = _get_user_role(request.user) or "customer"
     is_customer = role == "customer"
+    is_staff = role == "staff"
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     current_customer_id = None
 
     if is_customer:
@@ -987,14 +1235,53 @@ def payment_list(request):
         if customer_err:
             error = customer_err
 
-    if request.method == "POST" and not is_customer:
-        payload = {
-            "order_id": _to_int(request.POST.get("order_id", "0"), 0),
-            "status": request.POST.get("status", "PAID"),
-        }
-        error = _post_json_with_error(f"{PAY_SERVICE_URL}/payments/", payload, "Create payment failed")
-        if not error:
-            return redirect("payments")
+    if request.method == "POST":
+        action = request.POST.get("action", "").strip().lower()
+        if not is_staff:
+            error = "Only staff can modify payments."
+        else:
+            try:
+                if action == "update_payment":
+                    payment_id = _to_int(request.POST.get("payment_id", "0"), 0)
+                    payload = {
+                        "status": request.POST.get("status", "PAID"),
+                    }
+                    resp = requests.put(f"{PAY_SERVICE_URL}/payments/{payment_id}/", json=payload, timeout=5)
+                    if resp.status_code not in [200, 201]:
+                        error = f"Update payment failed: {resp.text}"
+                    else:
+                        success_message = "Payment updated successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
+                        return redirect("payments")
+                elif action == "delete_payment":
+                    payment_id = _to_int(request.POST.get("payment_id", "0"), 0)
+                    resp = requests.delete(f"{PAY_SERVICE_URL}/payments/{payment_id}/", timeout=5)
+                    if resp.status_code not in [200, 204]:
+                        error = f"Delete payment failed: {resp.text}"
+                    else:
+                        success_message = "Payment deleted successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
+                        return redirect("payments")
+                else:
+                    payload = {
+                        "order_id": _to_int(request.POST.get("order_id", "0"), 0),
+                        "status": request.POST.get("status", "PAID"),
+                    }
+                    error = _post_json_with_error(f"{PAY_SERVICE_URL}/payments/", payload, "Create payment failed")
+                    if not error:
+                        success_message = "Payment created successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=201)
+                        return redirect("payments")
+            except (TypeError, ValueError):
+                error = "Invalid numeric input."
+            except requests.RequestException as exc:
+                error = str(exc)
+
+        if is_ajax:
+            return JsonResponse({"ok": False, "error": error or "Payment action failed."}, status=400)
 
     payments, fetch_error = _safe_get_json(f"{PAY_SERVICE_URL}/payments/")
 
@@ -1118,14 +1405,57 @@ def payment_detail(request, payment_id):
 @login_required
 def shipment_list(request):
     error = None
+    success_message = None
+    role = _get_user_role(request.user) or "customer"
+    is_staff = role == "staff"
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     if request.method == "POST":
-        payload = {
-            "order_id": _to_int(request.POST.get("order_id", "0"), 0),
-            "status": request.POST.get("status", "SHIPPED"),
-        }
-        error = _post_json_with_error(f"{SHIP_SERVICE_URL}/shipments/", payload, "Create shipment failed")
-        if not error:
-            return redirect("shipments")
+        action = request.POST.get("action", "").strip().lower()
+        if not is_staff:
+            error = "Only staff can modify shipments."
+        else:
+            try:
+                if action == "update_shipment":
+                    shipment_id = _to_int(request.POST.get("shipment_id", "0"), 0)
+                    payload = {
+                        "status": request.POST.get("status", "SHIPPED"),
+                    }
+                    resp = requests.put(f"{SHIP_SERVICE_URL}/shipments/{shipment_id}/", json=payload, timeout=5)
+                    if resp.status_code not in [200, 201]:
+                        error = f"Update shipment failed: {resp.text}"
+                    else:
+                        success_message = "Shipment updated successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
+                        return redirect("shipments")
+                elif action == "delete_shipment":
+                    shipment_id = _to_int(request.POST.get("shipment_id", "0"), 0)
+                    resp = requests.delete(f"{SHIP_SERVICE_URL}/shipments/{shipment_id}/", timeout=5)
+                    if resp.status_code not in [200, 204]:
+                        error = f"Delete shipment failed: {resp.text}"
+                    else:
+                        success_message = "Shipment deleted successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=200)
+                        return redirect("shipments")
+                else:
+                    payload = {
+                        "order_id": _to_int(request.POST.get("order_id", "0"), 0),
+                        "status": request.POST.get("status", "SHIPPED"),
+                    }
+                    error = _post_json_with_error(f"{SHIP_SERVICE_URL}/shipments/", payload, "Create shipment failed")
+                    if not error:
+                        success_message = "Shipment created successfully."
+                        if is_ajax:
+                            return JsonResponse({"ok": True, "message": success_message}, status=201)
+                        return redirect("shipments")
+            except (TypeError, ValueError):
+                error = "Invalid numeric input."
+            except requests.RequestException as exc:
+                error = str(exc)
+
+        if is_ajax:
+            return JsonResponse({"ok": False, "error": error or "Shipment action failed."}, status=400)
 
     shipments, fetch_error = _safe_get_json(f"{SHIP_SERVICE_URL}/shipments/")
 
@@ -1146,7 +1476,7 @@ def shipment_list(request):
             ]
 
     merged_error = error or fetch_error or orders_error or books_error
-    return render(request, "shipments.html", {"shipments": shipments, "error": merged_error})
+    return render(request, "shipments.html", {"shipments": shipments, "error": merged_error, "is_staff": is_staff})
 
 
 @login_required
