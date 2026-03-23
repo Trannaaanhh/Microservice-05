@@ -114,4 +114,10 @@ docker info
 
 3. Neu thay thong tin `Server`, chay lai lenh compose.
 
+## 8) Tai lieu ky thuat nang cap
+
+- Bao cao tong hop ky thuat: `reports/project-upgrade-technical-report.md`
+- Bao cao tieng Anh ban copy truc tiep: `reports/project-upgrade-technical-report-final.txt`
+- Bao cao fault + load test: `reports/fault-and-load-testing.md`
+
 
