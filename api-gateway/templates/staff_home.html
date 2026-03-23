@@ -1,24 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}Staff Home{% endblock %}
+{% block title %}Trang Nhan Vien - BookStore{% endblock %}
 
 {% block content %}
-<section class="card">
-    <h1>Staff Home</h1>
-    <p>Hello {{ request.user.username }}. You are signed in as staff.</p>
-    <p>Manage the platform from one place: update catalog items, monitor orders, and handle payment and shipment flows.</p>
+<section class="hero-section" style="text-align:left;padding:42px 34px;background:linear-gradient(135deg,#0f172a,#1e293b 60%,#334155);">
+    <span style="display:inline-block;background:rgba(255,255,255,0.12);color:#fff;padding:7px 12px;border-radius:999px;font-size:0.85rem;font-weight:700;">Staff Console</span>
+    <h1 style="margin-top:14px;">Xin chao {{ request.user.username }}</h1>
+    <p style="max-width:780px;margin-left:0;">Ban dang dang nhap voi vai tro nhan vien. Quan ly danh muc, khach hang, don hang, thanh toan va van chuyen tu mot bang dieu khien tap trung.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <a href="/orders/" class="button-link">Quan Ly Don Hang</a>
+        <a href="/customers/" class="button-link" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);">Quan Ly Khach Hang</a>
+    </div>
 </section>
 
-<section class="card">
-    <h2>Staff Actions</h2>
-    <ul>
-        <li><a href="/books/">Manage books, inventory, and pricing</a></li>
-        <li><a href="/clothes/">Manage clothes catalog</a></li>
-        <li><a href="/customers/">Manage customer records</a></li>
-        <li><a href="/orders/">Track and update orders</a></li>
-        <li><a href="/payments/">Control payment status</a></li>
-        <li><a href="/shipments/">Coordinate shipment status</a></li>
-    </ul>
+<section class="card" style="border:none;background:transparent;padding:0;">
+    <h2 class="section-title">Tac Vu Van Hanh</h2>
+    <div class="cards-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+        <a href="/books/" class="entity-card" style="text-decoration:none;">
+            <div class="entity-title">Sach</div>
+            <div class="entity-meta">Cap nhat ton kho, gia ban, hinh anh</div>
+        </a>
+        <a href="/clothes/" class="entity-card" style="text-decoration:none;">
+            <div class="entity-title">Thoi Trang</div>
+            <div class="entity-meta">Quan ly danh muc thoi trang</div>
+        </a>
+        <a href="/customers/" class="entity-card" style="text-decoration:none;">
+            <div class="entity-title">Khach Hang</div>
+            <div class="entity-meta">Xem va quan ly thong tin khach</div>
+        </a>
+        <a href="/orders/" class="entity-card" style="text-decoration:none;">
+            <div class="entity-title">Don Hang</div>
+            <div class="entity-meta">Cap nhat trang thai xu ly don</div>
+        </a>
+        <a href="/payments/" class="entity-card" style="text-decoration:none;">
+            <div class="entity-title">Thanh Toan</div>
+            <div class="entity-meta">Theo doi va doi soat giao dich</div>
+        </a>
+        <a href="/shipments/" class="entity-card" style="text-decoration:none;">
+            <div class="entity-title">Van Chuyen</div>
+            <div class="entity-meta">Phoi hop giao hang va cap nhat</div>
+        </a>
+    </div>
 </section>
 {% endblock %}
 

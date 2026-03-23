@@ -1,41 +1,55 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Bookstore Gateway{% endblock %}
+{% block title %}Đăng Nhập - BookStore{% endblock %}
 
 {% block content %}
 
-<div class="center-shell">
+<div class="center-shell" style="min-height: 70vh; display: flex; align-items: center; justify-content: center;">
 
-<section class="card" style="width: 440px;">
+<section class="card" style="width: 100%; max-width: 450px;">
 
-<h1>Login</h1>
-<p>Sign in to access the gateway with your customer or staff permissions.</p>
-
+<div style="text-align: center; margin-bottom: 32px;">
+    <div style="font-size: 3.5rem; margin-bottom: 16px;">📚</div>
+    <h1 style="margin-bottom: 8px;">Đăng Nhập</h1>
+    <p style="color: var(--muted); margin-bottom: 0;">Truy cập tài khoản BookStore của bạn</p>
+</div>
 
 {% if error %}
-<div class="error">{{ error }}</div>
+<div class="error" style="margin-bottom: 20px;">{{ error }}</div>
 {% endif %}
 
-<form method="post">
+<form method="post" style="grid-template-columns: 1fr; gap: 16px;">
 {% csrf_token %}
 
-<input
-type="text"
-name="username"
-placeholder="Username"
-required
-/>
+<div>
+    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.95rem;">Tên Đăng Nhập</label>
+    <input
+        type="text"
+        name="username"
+        placeholder="Nhập tên đăng nhập..."
+        required
+    />
+</div>
 
-<select name="role" required>
-<option value="customer">Customer</option>
-<option value="staff">Staff</option>
-</select>
+<div>
+    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.95rem;">Loại Tài Khoản</label>
+    <select name="role" required style="width: 100%;">
+        <option value="customer">Khách Hàng</option>
+        <option value="staff">Nhân Viên</option>
+    </select>
+</div>
 
-<button type="submit">
-Login
+<button type="submit" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 8px;">
+Đăng Nhập
 </button>
 
 </form>
+
+<div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+    <p style="color: var(--muted); font-size: 0.95rem; margin-bottom: 0;">
+        Chưa có tài khoản? <a href="#" style="color: var(--primary); font-weight: 600;">Đăng ký ngay</a>
+    </p>
+</div>
 
 </section>
 

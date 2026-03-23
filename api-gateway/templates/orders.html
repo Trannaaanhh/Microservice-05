@@ -1,88 +1,115 @@
 {% extends "base.html" %}
 
-{% block title %}Orders{% endblock %}
+{% block title %}Đơn Hàng - BookStore{% endblock %}
 
 {% block content %}
-<section class="card">
-    <span class="eyebrow">Operations</span>
-    <h1>Orders</h1>
-    {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
-    {% if not is_customer %}
-        <h2>Create Order</h2>
-        <form method="post">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+    <div>
+        <span style="display: inline-block; background: var(--primary); color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; margin-bottom: 12px;">QUẢN LÝ</span>
+        <h1 style="margin-top: 8px;">{% if is_customer %}Lịch Sử Đơn Hàng{% else %}Danh Sách Đơn Hàng{% endif %}</h1>
+    </div>
+</div>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+{% if not is_customer %}
+    <section class="card" style="margin-bottom: 30px;">
+        <h2>Tạo Đơn Hàng</h2>
+        <form method="post" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
             {% csrf_token %}
-            <input type="number" name="customer_id" placeholder="Customer ID" required />
-
+            <input type="number" name="customer_id" placeholder="ID Khách hàng" required />
+            
             <select name="payment_status" required>
-                <option value="PAID">Pay now (PAID)</option>
-                <option value="PENDING">Pay later (PENDING)</option>
-                <option value="FAILED">Payment failed (FAILED)</option>
+                <option value="PAID">Thanh toán (PAID)</option>
+                <option value="PENDING">Chờ thanh toán (PENDING)</option>
+                <option value="FAILED">Thanh toán thất bại (FAILED)</option>
             </select>
 
             <select name="shipment_status" required>
-                <option value="SHIPPED">Ship now (SHIPPED)</option>
-                <option value="PROCESSING">Ship processing (PROCESSING)</option>
-                <option value="PENDING">Ship pending (PENDING)</option>
+                <option value="SHIPPED">Đã giao (SHIPPED)</option>
+                <option value="PROCESSING">Đang xử lý (PROCESSING)</option>
+                <option value="PENDING">Chờ giao (PENDING)</option>
             </select>
 
-            <button type="submit">Create</button>
+            <button type="submit">Tạo Đơn Hàng</button>
         </form>
+    </section>
+{% endif %}
+
+<section class="card" style="border: none; background: transparent; padding: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2 class="section-title" style="margin-bottom: 0;">Đơn Hàng ({{ orders|length }} sản phẩm)</h2>
+    </div>
+
+    {% if orders %}
+        <div style="display: grid; gap: 20px;">
+            {% for order in orders %}
+                <div class="product-card" style="border: 1px solid var(--border); padding: 20px;">
+                    <div style="display: grid; grid-template-columns: 1fr 200px; gap: 20px; align-items: start;">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                                <div>
+                                    <h3 style="margin: 0 0 4px 0; font-size: 1.1rem;">
+                                        {% if not is_customer %}
+                                            <a href="{% url 'order_detail' order.id %}">Đơn hàng #{{ order.id }}</a>
+                                        {% else %}
+                                            Đơn hàng #{{ order.id }}
+                                        {% endif %}
+                                    </h3>
+                                    <div style="color: var(--muted); font-size: 0.9rem;">Mã: {{ order.id }} | Khách: #{{ order.customer_id }}</div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+                                <span class="status-badge status-{{ order.status|lower }}">{{ order.status|default:'UNKNOWN' }}</span>
+                                <span class="status-badge status-{{ order.payment_status|lower }}">{{ order.payment_status|default:'UNKNOWN' }}</span>
+                                <span class="status-badge status-{{ order.shipment_status|lower }}">{{ order.shipment_status|default:'UNKNOWN' }}</span>
+                            </div>
+
+                            {% if order.book_images %}
+                                <div style="display: flex; gap: 8px;">
+                                    {% for image_url in order.book_images %}
+                                        <img src="{{ image_url }}" alt="Order {{ order.id }}" style="width: 60px; height: 80px; object-fit: cover; border-radius: 6px;" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            {% if not is_customer %}
+                                <form method="post" style="display: grid; gap: 8px; grid-template-columns: 1fr; margin-bottom: 12px;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_order" />
+                                    <input type="hidden" name="order_id" value="{{ order.id }}" />
+                                    <select name="status" required style="width: 100%;">
+                                        <option value="PENDING" {% if order.status == 'PENDING' %}selected{% endif %}>PENDING</option>
+                                        <option value="CONFIRMED" {% if order.status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
+                                        <option value="FAILED" {% if order.status == 'FAILED' %}selected{% endif %}>FAILED</option>
+                                    </select>
+                                    <button type="submit" style="padding: 10px;">Cập Nhật</button>
+                                </form>
+
+                                <form method="post" style="grid-template-columns: 1fr;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_order" />
+                                    <input type="hidden" name="order_id" value="{{ order.id }}" />
+                                    <button type="submit" class="btn-danger">Xóa</button>
+                                </form>
+                            {% else %}
+                                <a href="{% url 'order_detail' order.id %}" class="button-link" style="display: block; text-align: center;">Xem Chi Tiết</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 60px 20px; color: var(--muted);">
+            <p style="font-size: 1.1rem;">Không có đơn hàng nào</p>
+        </div>
     {% endif %}
 </section>
 
-<section class="card">
-    <div class="section-head">
-        <h2>{% if is_customer %}Order History{% else %}Order List{% endif %}</h2>
-        <span class="status-badge">{{ orders|length }} items</span>
-    </div>
-    <div class="cards-grid">
-        {% for order in orders %}
-            <article class="entity-card">
-                <div class="entity-title">
-                    {% if not is_customer %}
-                        <a href="{% url 'order_detail' order.id %}">Order #{{ order.id }}</a>
-                    {% else %}
-                        Order #{{ order.id }}
-                    {% endif %}
-                </div>
-                <div class="entity-meta">Customer #{{ order.customer_id }}</div>
-                <div class="badge-row">
-                    <span data-status="{{ order.status|default:'UNKNOWN' }}">Order: {{ order.status|default:'UNKNOWN' }}</span>
-                    <span data-status="{{ order.payment_status|default:'UNKNOWN' }}">Payment: {{ order.payment_status|default:'UNKNOWN' }}</span>
-                    <span data-status="{{ order.shipment_status|default:'UNKNOWN' }}">Shipment: {{ order.shipment_status|default:'UNKNOWN' }}</span>
-                </div>
-                {% if not is_customer %}
-                    <form method="post" style="grid-template-columns: minmax(130px, 1fr) 130px;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="update_order" />
-                        <input type="hidden" name="order_id" value="{{ order.id }}" />
-                        <select name="status" required>
-                            <option value="PENDING" {% if order.status == 'PENDING' %}selected{% endif %}>PENDING</option>
-                            <option value="CONFIRMED" {% if order.status == 'CONFIRMED' %}selected{% endif %}>CONFIRMED</option>
-                            <option value="FAILED" {% if order.status == 'FAILED' %}selected{% endif %}>FAILED</option>
-                        </select>
-                        <button type="submit">Update</button>
-                    </form>
-
-                    <form method="post" style="grid-template-columns: 130px;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="delete_order" />
-                        <input type="hidden" name="order_id" value="{{ order.id }}" />
-                        <button type="submit">Delete</button>
-                    </form>
-                {% endif %}
-                {% if order.book_images %}
-                    <div class="product-thumb-wrap">
-                        {% for image_url in order.book_images %}
-                            <img src="{{ image_url }}" alt="Order {{ order.id }} item" class="product-thumb" onerror="this.onerror=null;this.src='/image/product-placeholder.svg';" />
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            </article>
-        {% empty %}
-            <p>No orders</p>
-        {% endfor %}
-    </div>
-</section>
 {% endblock %}
+
