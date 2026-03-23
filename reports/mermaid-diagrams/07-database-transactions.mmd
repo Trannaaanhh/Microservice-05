@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant PaymentService as Payment Service
+    participant BookService as Book Service
+    participant OrderService as Order Service
+    participant Database as PostgreSQL
+
+    PaymentService->>Database: BEGIN TRANSACTION
+    Database-->>PaymentService: Transaction started
+
+    PaymentService->>Database: INSERT payment_record {order_id, amount}
+    Database-->>PaymentService: ✅ Inserted
+
+    PaymentService->>BookService: Reduce inventory
+    BookService->>Database: UPDATE books SET stock -= 2 WHERE id=1
+    Database-->>BookService: ✅ Updated stock
+
+    BookService->>BookService: Check: stock < minimum?
+    alt Stock Low
+        BookService->>Database: INSERT into low_stock_alerts
+        Database-->>BookService: ✅ Alert created
+    end
+
+    PaymentService->>OrderService: Mark order as completed
+    OrderService->>Database: UPDATE orders SET status='COMPLETED'
+    Database-->>OrderService: ✅ Updated
+
+    PaymentService->>Database: COMMIT TRANSACTION
+    Database-->>PaymentService: ✅ Transaction committed
+
+    PaymentService-->>PaymentService: All changes persisted

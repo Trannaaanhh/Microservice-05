@@ -1,0 +1,64 @@
+graph TB
+    subgraph Client["Client Layer"]
+        Web["🌐 Web Browser<br/>localhost:8000"]
+        Mobile["📱 Mobile App"]
+    end
+
+    subgraph APILayer["API Gateway Layer"]
+        Gateway["🌉 API Gateway<br/>Django<br/>Port 8000"]
+    end
+
+    subgraph ServiceLayer["Microservice Layer"]
+        Auth["🔐 Auth Service<br/>Port 8010"]
+        Customer["👥 Customer<br/>Port 8001"]
+        Book["📚 Book<br/>Port 8002"]
+        Cart["🛒 Cart<br/>Port 8003"]
+        Order["📦 Order<br/>Port 8004"]
+        Payment["💳 Payment<br/>Port 8005"]
+        Ship["🚚 Shipment<br/>Port 8006"]
+        Rating["⭐ Rating<br/>Port 8007"]
+        AI["🤖 Recommender AI<br/>Port 8008"]
+        Clothes["👔 Clothes<br/>Port 8009"]
+    end
+
+    subgraph DataLayer["Data & Message Layer"]
+        Postgres["🐘 PostgreSQL<br/>10 Databases<br/>Port 5432"]
+        RabbitMQ["🐰 RabbitMQ<br/>Message Bus<br/>Port 5672"]
+    end
+
+    Web -->|HTTP Requests| Gateway
+    Mobile -->|REST API| Gateway
+
+    Gateway -->|Route /auth| Auth
+    Gateway -->|Route /customers| Customer
+    Gateway -->|Route /books| Book
+    Gateway -->|Route /carts| Cart
+    Gateway -->|Route /orders| Order
+    Gateway -->|Route /payments| Payment
+    Gateway -->|Route /shipments| Ship
+    Gateway -->|Route /ratings| Rating
+    Gateway -->|Route /recommendations| AI
+    Gateway -->|Route /clothes| Clothes
+
+    Auth -->|Read/Write| Postgres
+    Customer -->|Read/Write| Postgres
+    Book -->|Read/Write| Postgres
+    Cart -->|Read/Write| Postgres
+    Order -->|Read/Write| Postgres
+    Payment -->|Read/Write| Postgres
+    Ship -->|Read/Write| Postgres
+    Rating -->|Read/Write| Postgres
+    AI -->|Read| Postgres
+    Clothes -->|Read/Write| Postgres
+
+    Order -->|Publish events| RabbitMQ
+    Payment -->|Publish events| RabbitMQ
+    Ship -->|Listen & Publish| RabbitMQ
+    RabbitMQ -->|Update listeners| Order
+    RabbitMQ -->|Notify| Gateway
+
+    style Web fill:#e1f5ff
+    style Mobile fill:#e1f5ff
+    style Gateway fill:#fff3e0
+    style Postgres fill:#f3e5f5
+    style RabbitMQ fill:#e8f5e9

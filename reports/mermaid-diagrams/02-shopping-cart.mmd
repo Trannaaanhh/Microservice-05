@@ -1,0 +1,33 @@
+---
+id: 60fa4c46-1e9e-4430-b8b3-bc768a1ef70d
+---
+sequenceDiagram
+    participant Customer
+    participant APIGateway as API Gateway
+    participant BookService as Book Service
+    participant CartService as Cart Service
+    participant Database as PostgreSQL
+
+    Customer->>APIGateway: GET /books?page=1
+    APIGateway->>BookService: Query books
+    BookService->>Database: SELECT books LIMIT 20
+    Database-->>BookService: [Book list with id, title, price]
+    BookService-->>APIGateway: JSON response
+
+    APIGateway-->>Customer: Render books page
+
+    Note over Customer: Customer views books and selects one
+
+    Customer->>APIGateway: POST /cart<br/>{book_id: 1, quantity: 2}
+    APIGateway->>BookService: Verify book & stock
+    BookService->>Database: SELECT stock FROM books WHERE id=1
+    Database-->>BookService: {id: 1, stock: 50}
+    BookService->>BookService: Check if stock >= 2
+    BookService-->>APIGateway: ✅ Book verified
+
+    APIGateway->>CartService: Add to cart
+    CartService->>Database: INSERT INTO cart_items {user_id, book_id, qty}
+    Database-->>CartService: ✅ Inserted
+    CartService-->>APIGateway: {cart_id: 456, items: 1}
+
+    APIGateway-->>Customer: ✅ Added to cart<br/>Cart updated (1 item)

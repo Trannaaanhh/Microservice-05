@@ -1,0 +1,46 @@
+---
+id: 86da5cd1-3d31-4e50-970c-458480cc533f
+---
+sequenceDiagram
+    participant Customer
+    participant APIGateway as API Gateway
+    participant OrderService as Order Service
+    participant PaymentService as Payment Service
+    participant ShipService as Ship Service
+    participant Database as PostgreSQL
+
+    Customer->>APIGateway: POST /checkout<br/>{cart_id: 456, address, phone}
+    APIGateway->>OrderService: Create order from cart
+    OrderService->>Database: INSERT INTO orders {user_id, total, status='PENDING'}
+    Database-->>OrderService: {order_id: 789, status: PENDING}
+    OrderService->>Database: INSERT INTO order_items SELECT * FROM cart_items
+    Database-->>OrderService: ✅ Order created
+    OrderService-->>APIGateway: {order_id: 789, total: 150000}
+
+    APIGateway-->>Customer: ✅ Order created<br/>Proceed to payment
+
+    Note over Customer: Customer enters payment info
+
+    Customer->>APIGateway: POST /payment<br/>{order_id: 789, amount: 150000, method: CARD}
+    APIGateway->>PaymentService: Process payment
+    PaymentService->>PaymentService: Call payment gateway (Stripe/Momo)
+    PaymentService->>Database: INSERT INTO payments {order_id, amount, status='PROCESSING'}
+    Database-->>PaymentService: ✅ Payment recorded
+    PaymentService->>PaymentService: Receive confirmation from gateway
+    PaymentService->>Database: UPDATE payments SET status='COMPLETED'
+    Database-->>PaymentService: ✅ Updated
+
+    PaymentService-->>APIGateway: ✅ Payment successful
+
+    APIGateway->>OrderService: Update order status
+    OrderService->>Database: UPDATE orders SET status='PAID' WHERE id=789
+    Database-->>OrderService: ✅ Updated
+
+    OrderService->>ShipService: Create shipment
+    ShipService->>Database: INSERT INTO shipments {order_id, status='PENDING'}
+    Database-->>ShipService: {shipment_id: 321, status: PENDING}
+    ShipService-->>OrderService: Shipment assigned
+
+    OrderService-->>APIGateway: Order processing
+
+    APIGateway-->>Customer: ✅ Payment confirmed!<br/>Order is being processed
