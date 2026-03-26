@@ -13,7 +13,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import {
-  ArrowLeft, Star, Trash2, ShoppingCart, Edit, Save, X,
+  ArrowLeft, Star, Trash2, ShoppingCart, Edit, Save, X, Minus, Plus,
 } from "lucide-react";
 
 export function BookDetail() {
@@ -43,6 +43,7 @@ export function BookDetail() {
   const [successMsg, setSuccessMsg] = useState("");
 
   // cart state (customer)
+  const [qty, setQty] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMsg, setCartMsg] = useState("");
 
@@ -94,10 +95,11 @@ export function BookDetail() {
     setAddingToCart(true);
     try {
       const cart = await ensureCart(user.customerId);
-      await createCartItem({ cart: cart.id, book_id: bookId, quantity: 1 });
-      incrementCart(1);
-      showToast(`Đã thêm "${book?.title ?? 'sách'}" vào giỏ hàng! 🛒`);
+      await createCartItem({ cart: cart.id, book_id: bookId, quantity: qty });
+      incrementCart(qty);
+      showToast(`Đã thêm ${qty > 1 ? qty + " cuốn " : ""}"${book?.title ?? 'sách'}" vào giỏ hàng! 🛒`);
       setCartMsg("");
+      setQty(1);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Thêm giỏ hàng thất bại.";
       setCartMsg(msg);
@@ -232,11 +234,35 @@ export function BookDetail() {
               )}
 
               {isCustomer && !editing && (
-                <div className="mt-4 pt-4 border-t">
-                  {cartMsg && <p className="text-sm text-green-600 mb-2">{cartMsg}</p>}
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  {cartMsg && <p className="text-sm text-red-600">{cartMsg}</p>}
+                  {/* Quantity selector */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-700">Số lượng:</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQty((q) => Math.max(1, q - 1))}
+                        disabled={qty <= 1}
+                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-100 disabled:opacity-40 transition-colors"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-8 text-center font-semibold text-gray-900 text-base">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQty((q) => Math.min(book.stock, q + 1))}
+                        disabled={qty >= book.stock}
+                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-100 disabled:opacity-40 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <span className="text-xs text-gray-400">(tối đa {book.stock} cuốn)</span>
+                  </div>
                   <Button onClick={handleAddToCart} disabled={addingToCart} className="w-full gap-2">
                     <ShoppingCart className="w-4 h-4" />
-                    {addingToCart ? "Đang thêm..." : "Thêm vào giỏ hàng"}
+                    {addingToCart ? "Đang thêm..." : `Thêm ${qty > 1 ? qty + " cuốn " : ""}vào giỏ hàng`}
                   </Button>
                 </div>
               )}

@@ -6,6 +6,7 @@ import { BookDetail } from "./components/BookDetail";
 import { Fashion } from "./components/Fashion";
 import { FashionDetail } from "./components/FashionDetail";
 import { Cart } from "./components/Cart";
+import { ViewCart } from "./components/ViewCart";
 import { Orders } from "./components/Orders";
 import { Payment } from "./components/Payment";
 import { Shipping } from "./components/Shipping";
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { path: "fashion", Component: Fashion },
       { path: "fashion/:id", Component: FashionDetail },
       { path: "cart", Component: Cart },
+      { path: "my-cart", Component: ViewCart },
       { path: "orders", Component: Orders },
       { path: "payment", Component: Payment },
       { path: "shipping", Component: Shipping },
