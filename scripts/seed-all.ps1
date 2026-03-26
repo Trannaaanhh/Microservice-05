@@ -11,15 +11,16 @@ function Run-Seed {
 }
 
 Run-Seed -DbName "book_db" -Sql @"
-INSERT INTO app_book (id, title, author, price, stock) VALUES
-(1, 'Clean Code', 'Robert C. Martin', 15.99, 30),
-(2, 'Design Patterns', 'Erich Gamma', 22.50, 15),
-(3, 'Refactoring', 'Martin Fowler', 19.75, 20)
+INSERT INTO app_book (id, title, author, price, stock, image_url) VALUES
+(1, 'Clean Code', 'Robert C. Martin', 15.99, 30, 'http://localhost:8000/image/cleancode.png'),
+(2, 'Design Patterns', 'Erich Gamma', 22.50, 15, 'http://localhost:8000/image/designpatterns.png'),
+(3, 'Refactoring', 'Martin Fowler', 19.75, 20, 'http://localhost:8000/image/refactoring.png')
 ON CONFLICT (id) DO UPDATE SET
 title = EXCLUDED.title,
 author = EXCLUDED.author,
 price = EXCLUDED.price,
-stock = EXCLUDED.stock;
+stock = EXCLUDED.stock,
+image_url = EXCLUDED.image_url;
 SELECT setval(pg_get_serial_sequence('app_book','id'), (SELECT COALESCE(MAX(id),1) FROM app_book), true);
 "@
 
@@ -54,12 +55,15 @@ SELECT setval(pg_get_serial_sequence('app_cartitem','id'), (SELECT COALESCE(MAX(
 "@
 
 Run-Seed -DbName "order_db" -Sql @"
-INSERT INTO app_order (id, customer_id, status) VALUES
-(1, 1, 'PENDING'),
-(2, 2, 'CONFIRMED')
+INSERT INTO app_order (id, customer_id, status, saga_state, fail_reason, book_ids) VALUES
+(1, 1, 'PENDING', 'PENDING', '', '[]'),
+(2, 2, 'CONFIRMED', 'CONFIRMED', '', '[]')
 ON CONFLICT (id) DO UPDATE SET
 customer_id = EXCLUDED.customer_id,
-status = EXCLUDED.status;
+status = EXCLUDED.status,
+saga_state = EXCLUDED.saga_state,
+fail_reason = EXCLUDED.fail_reason,
+book_ids = EXCLUDED.book_ids;
 SELECT setval(pg_get_serial_sequence('app_order','id'), (SELECT COALESCE(MAX(id),1) FROM app_order), true);
 "@
 
@@ -84,9 +88,9 @@ SELECT setval(pg_get_serial_sequence('app_shipment','id'), (SELECT COALESCE(MAX(
 "@
 
 Run-Seed -DbName "clothes_db" -Sql @"
-INSERT INTO app_cloth (id, name, brand, category, size, color, material, price, stock, description, is_active) VALUES
-(1, 'Basic T-Shirt', 'UniWear', 'Top', 'M', 'Black', 'Cotton', 9.99, 100, 'Basic cotton t-shirt', true),
-(2, 'Denim Jacket', 'BlueLine', 'Outerwear', 'L', 'Blue', 'Denim', 29.99, 40, 'Classic denim jacket', true)
+INSERT INTO app_cloth (id, name, brand, category, size, color, material, price, stock, image_url, description, is_active) VALUES
+(1, 'Basic T-Shirt', 'UniWear', 'Top', 'M', 'Black', 'Cotton', 9.99, 100, 'http://localhost:8000/image/Basic T-Shirt.png', 'Basic cotton t-shirt', true),
+(2, 'Denim Jacket', 'BlueLine', 'Outerwear', 'L', 'Blue', 'Denim', 29.99, 40, 'http://localhost:8000/image/DenimJacket.png', 'Classic denim jacket', true)
 ON CONFLICT (id) DO UPDATE SET
 name = EXCLUDED.name,
 brand = EXCLUDED.brand,
@@ -96,6 +100,7 @@ color = EXCLUDED.color,
 material = EXCLUDED.material,
 price = EXCLUDED.price,
 stock = EXCLUDED.stock,
+image_url = EXCLUDED.image_url,
 description = EXCLUDED.description,
 is_active = EXCLUDED.is_active;
 SELECT setval(pg_get_serial_sequence('app_cloth','id'), (SELECT COALESCE(MAX(id),1) FROM app_cloth), true);

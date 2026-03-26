@@ -157,12 +157,7 @@ def _is_staff_user(user):
 
 
 def home(request):
-    if not request.user.is_authenticated:
-        return redirect("login")
-
-    role = _get_user_role(request.user) or "customer"
-    template_name = "staff_home.html" if role == "staff" else "customer_home.html"
-    return render(request, template_name, {"role": role})
+    return redirect("http://localhost:5173")
 
 
 def login_view(request):
