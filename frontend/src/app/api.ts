@@ -103,6 +103,13 @@ export type Recommendation = {
   avg_rating?: number;
   image_url?: string;
   price?: number | string;
+  predicted_score?: number;
+};
+
+export type RecommendationResponse = {
+  customer_id: number;
+  recommended_books: number[];
+  recommended_book_details: Recommendation[];
 };
 
 export function toNumber(value: number | string | undefined | null): number {
@@ -153,7 +160,21 @@ export function fetchCartItems(cartId: number) {
 }
 
 export function fetchRecommendations(customerId: number) {
-  return request<Recommendation[]>(`${SERVICE_BASE_URLS.recommendations}/recommendations/${customerId}/`);
+  return request<RecommendationResponse>(`${SERVICE_BASE_URLS.recommendations}/recommendations/${customerId}/`);
+}
+
+export type RebuildRecommendationResponse = {
+  trained: boolean;
+  signature: string;
+  customer_count?: number;
+  book_count?: number;
+  message: string;
+};
+
+export function rebuildRecommendationModel() {
+  return request<RebuildRecommendationResponse>(`${SERVICE_BASE_URLS.recommendations}/rebuild/`, {
+    method: "POST",
+  });
 }
 
 export async function probeService(url: string): Promise<boolean> {

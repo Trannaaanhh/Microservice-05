@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Database, Package, Server, ShoppingBag, ShoppingCart, TrendingUp, Users } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Database,
+  Package,
+  Server,
+  ShoppingBag,
+  ShoppingCart,
+  Sparkles,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { Link } from "react-router";
 
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import {
@@ -116,6 +128,30 @@ export function Dashboard() {
         <h2 className="text-3xl font-semibold text-gray-900">Dashboard</h2>
         <p className="text-gray-600 mt-1">Tong quan he thong microservices</p>
       </div>
+
+      <Card className="mb-8 overflow-hidden border-blue-200 bg-linear-to-r from-slate-950 via-blue-900 to-cyan-700 text-white shadow-lg">
+        <CardContent className="p-6 md:p-8 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-blue-100">
+              <Sparkles className="w-3.5 h-3.5" />
+              Frontend AI showcase
+            </div>
+            <h3 className="mt-4 text-2xl font-semibold leading-tight md:text-3xl">
+              Xem goi y AI truc tiep tren giao dien frontend.
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-blue-100">
+              Trang AI recommendations da duoc noi vao navigation va dashboard de kiem tra nhanh ket qua goi y cho tung khach hang.
+            </p>
+          </div>
+          <Link
+            to="/ai-recommendations"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-950 transition-transform hover:-translate-y-0.5"
+          >
+            Mo trang AI
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </CardContent>
+      </Card>
 
       {loading && <p className="text-sm text-gray-500 mb-4">Dang dong bo du lieu...</p>}
 
